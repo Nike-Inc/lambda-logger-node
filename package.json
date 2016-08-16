@@ -1,0 +1,32 @@
+{
+  "name": "lambda-node-logger",
+  "version": "0.1.0",
+  "description": "A logger middleware for AWS Lambda functions",
+  "main": "src/index.js",
+  "scripts": {
+    "style": "standard \"src/**/*.js\" | snazzy",
+    "style:fix": "standard \"src/**/*.js\" --fix",
+    "test": "npm run style && blue-tape test/**/**.js | ./node_modules/.bin/tap-spec",
+    "test:watch": "npm run test -s & ./node_modules/.bin/chokidar 'src/**/*.js' 'test/**/*.js' -c \"./node_modules/.bin/blue-tape test/**/**.js | node_modules/.bin/tap-spec\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "ssh://git@stash.pes.nike.com/trsf/lambda-node-logger.git"
+  },
+  "keywords": [
+    "lambda",
+    "logger"
+  ],
+  "author": "Tim Kye",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "object-assign": "^4.1.0"
+  },
+  "devDependencies": {
+    "blue-tape": "^0.2.0",
+    "chokidar-cli": "^1.2.0",
+    "snazzy": "^4.0.1",
+    "standard": "^7.1.2",
+    "tap-spec": "^4.1.1"
+  }
+}
