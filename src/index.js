@@ -4,7 +4,7 @@ var assign = require('object-assign')
 var objectKeys = function(o,k,r){r=[];for(k in o)r.hasOwnProperty.call(o,k)&&r.push(k);return r} // eslint-disable-line
 
 var startTime = Date.now()
-var originalLog = console.log
+var originalLog = console.log.bind(console)
 console.log = log
 
 var tokenizer = /{{(.+?)}}/g
@@ -72,7 +72,7 @@ function restoreConsoleLog () {
 }
 
 function log () {
-  return originalLog.apply(null, [buildAccessLogPrefix(), ' | '].concat(Array.prototype.slice.call(arguments)))
+  return originalLog.apply(null, [buildAccessLogPrefix(), '|'].concat(Array.prototype.slice.call(arguments)))
 }
 
 function finalLog (event, context, err, result) {
@@ -84,7 +84,7 @@ function finalLog (event, context, err, result) {
     'apiKey': null,
     'restApiId': event.requestId,
     'restResourceId': null,
-    'result': JSON.stringify(result)
+    'result': JSON.stringify(err || result)
   }
   var logValues = []
   objectKeys(finalValues).forEach(function (key) {
