@@ -77,4 +77,6 @@ logger.logFormat += ' someCustomValue={{custom1}} anotherCustomValue={{custom2}}
 logger.setKey('appname', 'custom-app-name')
 logger.setKey('custom1', 'some-constant-value')
 logger.setKey('custom2', () => Math.random())
+// customize date format
+logger.setKey('data', () => customDateFormattter(Date.now()))
 ```
