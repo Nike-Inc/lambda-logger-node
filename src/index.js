@@ -23,11 +23,19 @@ function logModule (handler) {
       callback(err, result)
     }
 
-    // Replace context methods with next() callback
     var logContext = assign({}, context, {
-      succeed: next.bind(null, null),
-      fail: function (error) { next(error) },
-      done: next
+      succeed: function (result) {
+        finalLog(event, context, null, result)
+        context.succeed(result)
+      },
+      fail: function (error) {
+        finalLog(event, context, error, null)
+        context.fail(error)
+      },
+      done: function (error, result) {
+        finalLog(event, context, error, result)
+        context.done(error, result)
+      }
     })
 
     handler(event, logContext, next)
@@ -51,7 +59,7 @@ function setMdcKeys (context) {
 }
 
 function buildAccessLogPrefix () {
-  return logFormat.replace(tokenizer, getToken)
+  return logModule.format.replace(tokenizer, getToken)
 }
 
 function getToken (match, key) {
@@ -75,7 +83,8 @@ function finalLog (event, context, err, result) {
     'accessToken': event.headerParams && event.headerParams.Authorization,
     'apiKey': null,
     'restApiId': event.requestId,
-    'restResourceId': null
+    'restResourceId': null,
+    'result': JSON.stringify(result)
   }
   var logValues = []
   objectKeys(finalValues).forEach(function (key) {

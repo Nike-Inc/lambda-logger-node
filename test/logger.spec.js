@@ -22,7 +22,11 @@ const defaultEvent = {
 const defaultContext = {
   awsRequestId: 'asdfghjkl',
   functionName: 'test-function',
-  functionVersion: 'test-version'
+  functionVersion: 'test-version',
+  // You will need to override these for any tests that use them
+  succeed: () => {},
+  fail: () => {},
+  done: () => {}
 }
 const noop = () => {}
 const makeLogger = (event, context, callback) => {
@@ -60,8 +64,18 @@ test('logger creates access log when callback is called', t => {
 
 test('context.succeed should return success result', t => {
   t.plan(1)
-  makeLogger(null, null, (err, result) => {
-    if (err) t.end(err)
+  var l = logModule((e, c, cb) => { c.succeed('done') })
+  l(defaultEvent, Object.assign({}, defaultContext, { succeed: (result) => {
     t.equal(result, 'done', 'success result returned')
-  })
+  }}))
+})
+
+test('context.succeed should return success result', t => {
+  t.plan(1)
+  var l = logModule((e, c) => { c.succeed('done') })
+  l(defaultEvent, Object.assign({}, defaultContext, { succeed: (result) => {
+    var lastCall = logCalls.last()
+    t.comment(lastCall)
+    t.equal(result, 'done', 'success result returned')
+  }}))
 })
