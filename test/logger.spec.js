@@ -57,3 +57,11 @@ test('logger creates access log when callback is called', t => {
     t.ok(accessLog.match(/requestURL=\/some\/route requestMethod=GET elapsedTime=-?\d+ accessToken=Bearer 12 restApiId=request-id/))
   })
 })
+
+test('context.succeed should return success result', t => {
+  t.plan(1)
+  makeLogger(null, null, (err, result) => {
+    if (err) t.end(err)
+    t.equal(result, 'done', 'success result returned')
+  })
+})

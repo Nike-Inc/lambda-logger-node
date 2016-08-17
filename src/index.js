@@ -25,7 +25,7 @@ function logModule (handler) {
 
     // Replace context methods with next() callback
     var logContext = assign({}, context, {
-      succeed: next.bind(null),
+      succeed: next.bind(null, null),
       fail: function (error) { next(error) },
       done: next
     })
