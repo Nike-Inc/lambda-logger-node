@@ -37,6 +37,7 @@ function logModule (handler) {
 logModule.format = logFormat
 logModule.log = log
 logModule.setKey = setKey
+logModule.restoreConsoleLog = restoreConsoleLog
 
 function setKey (keyName, value) {
   logKeys[keyName] = value
@@ -56,6 +57,10 @@ function buildAccessLogPrefix () {
 function getToken (match, key) {
   var token = logKeys[key] || '((TOKEN MISSING: ' + key + '))'
   return typeof token === 'function' ? token() : token
+}
+
+function restoreConsoleLog () {
+  console.log = originalLog
 }
 
 function log () {

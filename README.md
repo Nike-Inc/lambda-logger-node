@@ -61,9 +61,24 @@ function handler (event, context, callback) {
 }
 ```
 
+# Restoring `console.log`
+
+If you do not like the replacement of `console.log` you can call restore the original one and use the `log` function on the module export to get the prepended logs.
+
+```javascript
+var logger = require('lambda-node-logger')
+logger.restoreConsoleLog()
+logger.log('This log will have the access log data prepended on it')
+```
+
 # Customizing logs
 
-The `console.log` replacement prepends on any configured key/value pairs using a custom string interpolation function. The format string is on `[[module.export]].logFormat`. The default value is
+The `console.log` replacement prepends on any configured key/value pairs using a custom string interpolation function. It can be controlled in two ways
+
+* `logger.logFormat` is the format string that will be interpolated and prepended to all `console.log` calls.
+
+
+ The format string is on `[[module.export]].logFormat`. The default value is
 
 ```javascript
 'traceId={{traceId}} {{date}} appname={{appname}} version={{version}}'

@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "description": "A logger middleware for AWS Lambda functions",
   "main": "src/index.js",
+  "files": [
+    "src"
+  ],
   "scripts": {
     "style": "standard \"src/**/*.js\" | snazzy",
     "style:fix": "standard \"src/**/*.js\" --fix",
