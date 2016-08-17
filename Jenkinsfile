@@ -28,6 +28,7 @@ node {
 def handleError(err) {
     notifySlack("Build Failed lambda-node-logger: ${err}")
     echo "Build Failed: ${err}"
+    error "build failed: ${err} "
 }
 
 def notifySlack(text) {
