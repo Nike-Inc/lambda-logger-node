@@ -4,8 +4,7 @@ var assign = require('object-assign')
 var objectKeys = function(o,k,r){r=[];for(k in o)r.hasOwnProperty.call(o,k)&&r.push(k);return r} // eslint-disable-line
 
 var startTime = Date.now()
-var originalLog = console.log.bind(console)
-console.log = log
+var originalLog
 
 var tokenizer = /{{(.+?)}}/g
 var logFormat = 'traceId={{traceId}} {{date}} appname={{appname}} version={{version}}'
@@ -15,6 +14,9 @@ module.exports = logModule
 
 function logModule (handler) {
   return function (event, context, callback) {
+    originalLog = console.log.bind(console)
+    console.log = log
+
     // Create initial values from context
     setMdcKeys(context)
 

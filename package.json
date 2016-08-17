@@ -1,6 +1,6 @@
 {
   "name": "@nike/lambda-node-logger",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "A logger middleware for AWS Lambda functions",
   "main": "src/index.js",
   "files": [

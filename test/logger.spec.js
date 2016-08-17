@@ -1,17 +1,21 @@
 'use strict'
 
 var test = require('blue-tape')
+var logModule = require('../src/index')
 
 // TAP uses logs for test results
 // Since logger hijacks the console.log, we need to restore it, or TAP breaks
 // We can hijack logger's log though, and capture it's calls
 var originalLog = console.log
+var loggerLog
 var logCalls = []
 logCalls.last = () => logCalls.length ? logCalls[logCalls.length - 1] : null
-console.log = function () { logCalls.push(Array.prototype.slice.call(arguments)) }
-var logModule = require('../src/index')
-var loggerLog = console.log
-console.log = originalLog
+
+var prepareConsole = () => { console.log = function () { logCalls.push(Array.prototype.slice.call(arguments)) } }
+var testLogWrapper = () => {
+  loggerLog = console.log
+  console.log = originalLog
+}
 
 const defaultEvent = {
   path: '/some/route',
@@ -30,7 +34,8 @@ const defaultContext = {
 }
 const noop = () => {}
 const makeLogger = (event, context, callback) => {
-  var l = logModule((e, c, cb) => { cb(null, 'done') })
+  prepareConsole()
+  var l = logModule((e, c, cb) => { testLogWrapper(); cb(null, 'done') })
   l(Object.assign({}, defaultEvent, event), Object.assign({}, defaultContext, context), callback || noop)
 }
 
@@ -40,6 +45,7 @@ test('logger should return a function', t => {
 })
 
 test('logger replace console.log', t => {
+  makeLogger()
   t.notEqual(originalLog, loggerLog, 'console.log replaced')
   t.end()
 })
@@ -64,7 +70,8 @@ test('logger creates access log when callback is called', t => {
 
 test('context.succeed should return success result', t => {
   t.plan(1)
-  var l = logModule((e, c, cb) => { c.succeed('done') })
+  prepareConsole()
+  var l = logModule((e, c, cb) => { testLogWrapper(); c.succeed('done') })
   l(defaultEvent, Object.assign({}, defaultContext, { succeed: (result) => {
     t.equal(result, 'done', 'success result returned')
   }}))
@@ -72,10 +79,9 @@ test('context.succeed should return success result', t => {
 
 test('context.succeed should return success result', t => {
   t.plan(1)
-  var l = logModule((e, c) => { c.succeed('done') })
+  prepareConsole()
+  var l = logModule((e, c) => { testLogWrapper(); c.succeed('done') })
   l(defaultEvent, Object.assign({}, defaultContext, { succeed: (result) => {
-    var lastCall = logCalls.last()
-    t.comment(lastCall)
     t.equal(result, 'done', 'success result returned')
   }}))
 })
