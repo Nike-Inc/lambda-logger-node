@@ -81,7 +81,7 @@ function finalLog (event, context, err, result) {
   var finalValues = {
     'requestURL': event.path,
     'requestMethod': event.method,
-    'elapsedTime': startTime - Date.now(),
+    'elapsedTime': Date.now() - startTime,
     'accessToken': event.headerParams && event.headerParams.Authorization,
     'apiKey': null,
     'restApiId': event.requestId,

@@ -16,7 +16,6 @@ node {
     stage 'Publish'
     try {
         sh "curl -u ${ARTIFACTORY_USER}:${ARTIFACTORY_PASS} ${ARTIFACTORY_BASE}/auth > .npmrc"
-        sh "echo \"email = S.QMAutomation@nike.com\" >> .npmrc"
         sh "echo \"registry=${ARTIFACTORY_BASE}/npm-nike\" >> .npmrc"
         sh "npm publish --registry ${ARTIFACTORY_BASE}/npm-local"
     } catch (err) {
