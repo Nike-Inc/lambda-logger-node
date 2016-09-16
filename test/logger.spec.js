@@ -85,3 +85,58 @@ test('context.succeed should return success result', t => {
     t.equal(result, 'done', 'success result returned')
   }}))
 })
+
+test('logger correctly logs expected prefix with .log', t => {
+  makeLogger()
+  logModule.log("foo")
+  var lastCall = logCalls.last()
+  t.ok(lastCall[0].match(/severity=info/))
+  t.end()
+})
+
+test('logger prepends default severity of info', t => {
+  makeLogger()
+  logModule.log('foo')
+  var lastCall = logCalls.last()
+  t.ok(lastCall[0].match(/traceId=asdfghjkl (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z) appname=test-function version=test-version severity=info/))
+  t.end()
+})
+
+test('logger prepends utility method severity levels', t => {
+  makeLogger()
+  logModule.warn("foo")
+  t.ok(logCalls.last()[0].match(/severity=warn/))
+  logModule.debug("foo")
+  t.ok(logCalls.last()[0].match(/severity=debug/))
+  logModule.trace("foo")
+  t.ok(logCalls.last()[0].match(/severity=trace/))
+  logModule.fatal("foo")
+  t.ok(logCalls.last()[0].match(/severity=fatal/))
+  logModule.info("foo")
+  t.ok(logCalls.last()[0].match(/severity=info/))
+  logModule.error("foo")
+  t.ok(logCalls.last()[0].match(/severity=error/))
+  t.end()
+})
+
+test('logger should respect default severity set', t => {
+  makeLogger()
+  logModule.setKey('severity', 'warn')
+  logModule.log('foo')
+  var lastCall = logCalls.last()
+  t.ok(lastCall[0].match(/traceId=asdfghjkl (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z) appname=test-function version=test-version severity=warn/))
+  t.end()
+})
+
+test('logger should work if severity is removed from prefix', t => {
+  makeLogger()
+  logModule.logFormat = 'traceId={{traceId}} severity={{severity}} {{date}} appname={{appname}}'
+  logModule.log('foo')
+  var lastCall = logCalls.last()
+  t.ok(!lastCall[0].match(/severity=info/))
+  logModule.logFormat = 'traceId={{traceId}} someCustomValue={{custom1}} {{date}} appname={{appname}}'
+  logModule.log('foo')
+  var lastCall = logCalls.last()
+  t.ok(!lastCall[0].match(/severity=info/))
+  t.end()
+})
