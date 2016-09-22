@@ -6,6 +6,7 @@ node {
     ARTIFACTORY_PASS='ludist'
 
     stage 'Build'
+    deleteDir()
     checkout scm
     try {
       sh "npm install"
