@@ -93,6 +93,7 @@ function finalLog (event, context, err, result) {
     if (finalValues[key]) logValues.push(key + '=' + finalValues[key])
   })
   log.apply(null, logValues)
+  restoreConsoleLog()
 }
 
 // Utilities
