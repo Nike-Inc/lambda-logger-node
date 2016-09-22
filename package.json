@@ -29,7 +29,7 @@
     "blue-tape": "^0.2.0",
     "chokidar-cli": "^1.2.0",
     "snazzy": "^4.0.1",
-    "standard": "^7.1.2",
+    "standard": "^8.1.0",
     "tap-spec": "^4.1.1"
   }
 }

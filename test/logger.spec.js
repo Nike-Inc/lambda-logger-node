@@ -14,7 +14,6 @@ logCalls.last = () => logCalls.length ? logCalls[logCalls.length - 1] : null
 var prepareConsole = () => { console.log = function () { logCalls.push(Array.prototype.slice.call(arguments)) } }
 var testLogWrapper = () => {
   loggerLog = console.log
-  console.log = originalLog
 }
 
 const defaultEvent = {
@@ -32,11 +31,13 @@ const defaultContext = {
   fail: () => {},
   done: () => {}
 }
-const noop = () => {}
 const makeLogger = (event, context, callback) => {
   prepareConsole()
   var l = logModule((e, c, cb) => { testLogWrapper(); cb(null, 'done') })
-  l(Object.assign({}, defaultEvent, event), Object.assign({}, defaultContext, context), callback || noop)
+  l(Object.assign({}, defaultEvent, event), Object.assign({}, defaultContext, context), (err, result) => {
+    console.log = originalLog
+    if (callback) callback(err, result)
+  })
 }
 
 test('logger should return a function', t => {
@@ -136,7 +137,7 @@ test('logger should work if severity is removed from prefix', t => {
   t.ok(!lastCall[0].match(/severity=info/))
   logModule.logFormat = 'traceId={{traceId}} someCustomValue={{custom1}} {{date}} appname={{appname}}'
   logModule.log('test')
-  var lastCall = logCalls.last()
+  lastCall = logCalls.last()
   t.ok(!lastCall[0].match(/severity=info/))
   t.end()
 })

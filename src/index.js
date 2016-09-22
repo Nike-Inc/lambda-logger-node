@@ -55,7 +55,6 @@ logModule.warn = logRouter('warn')
 logModule.error = logRouter('error')
 logModule.fatal = logRouter('fatal')
 
-
 function setKey (keyName, value) {
   logKeys[keyName] = value
 }
@@ -68,7 +67,7 @@ function setMdcKeys (context) {
 }
 
 function buildAccessLogPrefix (severity) {
-  var prefix = logModule.format.replace(/{{severity}}/, severity || logKeys['severity'] || 'info');
+  var prefix = logModule.format.replace(/{{severity}}/, severity || logKeys['severity'] || 'info')
   return prefix.replace(tokenizer, getToken)
 }
 
@@ -85,7 +84,7 @@ function log () {
   return originalLog.apply(null, [buildAccessLogPrefix(), '|'].concat(Array.prototype.slice.call(arguments)))
 }
 
-function logWithSeverity(message, severity) {
+function logWithSeverity (message, severity) {
   return originalLog.apply(null, [buildAccessLogPrefix(severity), '|'].concat(message))
 }
 
