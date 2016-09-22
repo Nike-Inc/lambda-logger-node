@@ -31,7 +31,7 @@ def handleError(err) {
 }
 
 def notifySlack(text) {
-    def slackURL = 'https://hooks.slack.com/services/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'
+    def slackURL = 'https://hooks.slack.com/services/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'
     def payload = JsonOutput.toJson([text      : text,
                                      channel   : '#team-chatter',
                                      username  : "jenkins",
