@@ -6,7 +6,7 @@ This logger does two things.
 
 1. Replaces `console.log` with a curried function that prepends any configured key/value pairs (or the default ones) onto the logged message. Both the format and values can be customized. The default format is
 ```
-traceId={{traceId}} {{date}} appname={{appname}} version={{version}} | {{originalMessage}}
+traceId={{traceId}} {{date}} appname={{appname}} version={{version}} severity={{severity}} | {{originalMessage}}
 ```
 
 2. Replaces the lambda `callback` (as well as `context.[fail|done|succeed] for legacy lambdas`) with a function will log an [access log](https://wiki-product.nike.com/display/TF/Logging+Standards#LoggingStandards-AccessLogs) before passing the result onto AWS. It will look something like This

@@ -7,7 +7,7 @@ var startTime = Date.now()
 var originalLog
 
 var tokenizer = /{{(.+?)}}/g
-var logFormat = 'traceId={{traceId}} {{date}} appname={{appname}} version={{version}}'
+var logFormat = 'traceId={{traceId}} {{date}} appname={{appname}} version={{version}} severity={{severity}}'
 var logKeys = {}
 
 module.exports = logModule
@@ -48,6 +48,13 @@ logModule.format = logFormat
 logModule.log = log
 logModule.setKey = setKey
 logModule.restoreConsoleLog = restoreConsoleLog
+logModule.trace = logRouter('trace')
+logModule.debug = logRouter('debug')
+logModule.info = logRouter('info')
+logModule.warn = logRouter('warn')
+logModule.error = logRouter('error')
+logModule.fatal = logRouter('fatal')
+
 
 function setKey (keyName, value) {
   logKeys[keyName] = value
@@ -60,8 +67,9 @@ function setMdcKeys (context) {
   setKey('version', context.functionVersion)
 }
 
-function buildAccessLogPrefix () {
-  return logModule.format.replace(tokenizer, getToken)
+function buildAccessLogPrefix (severity) {
+  var prefix = logModule.format.replace(/{{severity}}/, severity || logKeys['severity'] || 'info');
+  return prefix.replace(tokenizer, getToken)
 }
 
 function getToken (match, key) {
@@ -75,6 +83,14 @@ function restoreConsoleLog () {
 
 function log () {
   return originalLog.apply(null, [buildAccessLogPrefix(), '|'].concat(Array.prototype.slice.call(arguments)))
+}
+
+function logWithSeverity(message, severity) {
+  return originalLog.apply(null, [buildAccessLogPrefix(severity), '|'].concat(message))
+}
+
+function logRouter (severity) {
+  return function () { logWithSeverity(Array.prototype.slice.call(arguments), severity) }
 }
 
 function finalLog (event, context, err, result) {
