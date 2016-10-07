@@ -5,10 +5,14 @@ var objectKeys = function(o,k,r){r=[];for(k in o)r.hasOwnProperty.call(o,k)&&r.p
 
 var startTime = Date.now()
 var originalLog
+var originalInfo
+var originalWarn
+var originalError
+var contextLogMapper
 
 var tokenizer = /{{(.+?)}}/g
 var logFormat = 'traceId={{traceId}} {{date}} appname={{appname}} version={{version}} severity={{severity}}'
-var logKeys = {}
+var logKeys = {} 
 
 module.exports = logModule
 
@@ -16,6 +20,18 @@ function logModule (handler) {
   return function (event, context, callback) {
     originalLog = console.log.bind(console)
     console.log = log
+    originalInfo = console.info.bind(console)
+    console.info = logRouter('info')
+    originalError = console.error.bind(console)
+    console.error = logRouter('error')
+    originalWarn = console.warn.bind(console)
+    console.warn = logRouter('warn')
+
+    contextLogMapper = {
+      "info": originalInfo,
+      "warn": originalWarn,
+      "error": originalError
+    }
 
     // Create initial values from context
     setMdcKeys(context)
@@ -78,6 +94,9 @@ function getToken (match, key) {
 
 function restoreConsoleLog () {
   console.log = originalLog
+  console.warn = originalWarn
+  console.error = originalError
+  console.info = originalInfo
 }
 
 function log () {
@@ -85,7 +104,8 @@ function log () {
 }
 
 function logWithSeverity (message, severity) {
-  return originalLog.apply(null, [buildAccessLogPrefix(severity), '|'].concat(message))
+  var contextLogger = contextLogMapper[severity] || originalLog;
+  return contextLogger.apply(null, [buildAccessLogPrefix(severity), '|'].concat(message))
 }
 
 function logRouter (severity) {
