@@ -17,7 +17,7 @@ var loggerInfo
 var logCalls = []
 logCalls.last = () => logCalls.length ? logCalls[logCalls.length - 1] : null
 
-var prepareConsole = () => { console.log = console.warn = console.error = console.info = function () { logCalls.push(Array.prototype.slice.call(arguments)); } }
+var prepareConsole = () => { console.log = console.warn = console.error = console.info = function () { logCalls.push(Array.prototype.slice.call(arguments)) } }
 var testLogWrapper = () => {
   loggerLog = console.log
   loggerWarn = console.warn
@@ -137,11 +137,11 @@ test('logger prepends default severity of info', t => {
 })
 
 test('logger uses console context functions', t => {
-  var warnOutput = "warnTest"
-  var errorOutput = "errorTest"
-  var infoOutput = "infoTest"
+  var warnOutput = 'warnTest'
+  var errorOutput = 'errorTest'
+  var infoOutput = 'infoTest'
   makeLoggerContextTest(() => {
-    console.log = function () { logCalls.push(Array.prototype.slice.call(arguments)); }
+    console.log = function () { logCalls.push(Array.prototype.slice.call(arguments)) }
     console.warn = function () { t.ok(Array.prototype.slice.call(arguments)[2].match(warnOutput)) }
     console.error = function () { t.ok(Array.prototype.slice.call(arguments)[2].match(errorOutput)) }
     console.info = function () { t.ok(Array.prototype.slice.call(arguments)[2].match(infoOutput)) }
