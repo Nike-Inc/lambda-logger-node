@@ -12,7 +12,7 @@ var contextLogMapper
 
 var tokenizer = /{{(.+?)}}/g
 var logFormat = 'traceId={{traceId}} {{date}} appname={{appname}} version={{version}} severity={{severity}}'
-var logKeys = {} 
+var logKeys = {}
 
 module.exports = logModule
 
@@ -28,9 +28,9 @@ function logModule (handler) {
     console.warn = logRouter('warn')
 
     contextLogMapper = {
-      "info": originalInfo,
-      "warn": originalWarn,
-      "error": originalError
+      'info': originalInfo,
+      'warn': originalWarn,
+      'error': originalError
     }
 
     // Create initial values from context
@@ -104,7 +104,7 @@ function log () {
 }
 
 function logWithSeverity (message, severity) {
-  var contextLogger = contextLogMapper[severity] || originalLog;
+  var contextLogger = contextLogMapper[severity] || originalLog
   return contextLogger.apply(null, [buildAccessLogPrefix(severity), '|'].concat(message))
 }
 
