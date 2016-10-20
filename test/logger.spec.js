@@ -190,3 +190,15 @@ test('logger should work if severity is removed from prefix', t => {
   t.ok(!lastCall[0].match(/severity=info/))
   t.end()
 })
+
+test('logger.format allows format changes', t => {
+  var originalFormat = logModule.format
+  logModule.format = 'appName = {{appname}}'
+  makeLogger()
+  logModule.setKey('severity', 'warn')
+  logModule.log('test')
+  logModule.format = originalFormat
+  var lastCall = logCalls.last()
+  t.ok(lastCall[0].match(/appName =/), 'should use appName')
+  t.end()
+})

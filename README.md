@@ -119,10 +119,10 @@ function handler (event, context, callback) {
 
 The `console.log` replacement prepends on any configured key/value pairs using a custom string interpolation function. It can be controlled in two ways
 
-* `logger.logFormat` is the format string that will be interpolated and prepended to all `console.log` calls.
+* `logger.format` is the format string that will be interpolated and prepended to all `console.log` calls.
 
 
- The format string is on `[[module.export]].logFormat`. The default value is
+ The format string is on `[[module.export]].format`. The default value is
 
 ```javascript
 'traceId={{traceId}} {{date}} appname={{appname}} version={{version}}'
@@ -133,10 +133,10 @@ You can set this to any value, at any time, to change the log-prepend output. Th
 ```javascript
 var logger = require('lambda-node-logger')
 // Add more values
-logger.logFormat += ' someCustomValue={{custom1}} anotherCustomValue={{custom2}}'
+logger.format += ' someCustomValue={{custom1}} anotherCustomValue={{custom2}}'
 
 // OR change the format string entirely
-logger.logFormat = 'traceId={{traceId}} someCustomValue={{custom1}} {{date}} appname={{appname}}'
+logger.format = 'traceId={{traceId}} someCustomValue={{custom1}} {{date}} appname={{appname}}'
 
 // Set token values
 logger.setKey('appname', 'custom-app-name')
