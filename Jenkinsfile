@@ -1,7 +1,7 @@
 import groovy.json.JsonOutput
 
 node {
-    ARTIFACTORY_BASE='http://artifactory.nike.com/artifactory/api/npm'
+    ARTIFACTORY_BASE='https://artifactory.nike.com/artifactory/api/npm'
     ARTIFACTORY_USER='maven'
     ARTIFACTORY_PASS='ludist'
 
@@ -9,7 +9,7 @@ node {
     deleteDir()
     checkout scm
     try {
-      sh "npm install"
+      sh "yarn"
       sh "npm run test"
     } catch (err) {
         handleError(err)
