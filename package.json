@@ -1,6 +1,6 @@
 {
-  "name": "@nike/lambda-node-logger",
-  "version": "0.2.3",
+  "name": "@nike/lambda-logger-node",
+  "version": "0.3.0",
   "description": "A logger middleware for AWS Lambda functions",
   "main": "src/index.js",
   "files": [
@@ -14,7 +14,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "ssh://git@stash.pes.nike.com/trsf/lambda-node-logger.git"
+    "url": "ssh://git@git.nike.net:NextGenPlatforms/lambda-logger-node.git"
   },
   "keywords": [
     "lambda",

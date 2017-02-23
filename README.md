@@ -1,4 +1,4 @@
-# lambda-node-logger
+# lambda-logger-node
 
 A middleware logger that implements the [SOA+ access logging](https://wiki-product.nike.com/display/TF/Logging+Standards#LoggingStandards-LogFormatPattern) pattern for use in AWS NodeJS Lambdas
 
@@ -32,10 +32,10 @@ The `.npmrc` file can either be **project-level**, meaning it is in the root of 
 It's up to you which one to use, both work. Once that is done, install from npm as normal.
 
 ```
-npm install --save @nike/lambda-node-logger
+npm install --save @nike/lambda-logger-node
 ```
 
-Then, require the package with `var cerberus = require('@nike/lambda-node-logger')`
+Then, require the package with `var cerberus = require('@nike/lambda-logger-node')`
 
 If you are also using nike packages that are unscoped (that don't use the `@nike` prefix), you will need to include the unscoped registry in your `.npmrc`
 
@@ -52,7 +52,7 @@ Installing with a git package has the advantage of not required **any** addition
 To install, just run the following command
 
 ```
-npm install --save git+http://stash.pes.nike.com/scm/trsf/lambda-node-logger.git
+npm install --save git+http://stash.pes.nike.com/scm/trsf/lambda-logger-node.git
 ```
 
 
@@ -61,7 +61,7 @@ npm install --save git+http://stash.pes.nike.com/scm/trsf/lambda-node-logger.git
 Lambda handler
 
 ```javascript
-var logger = require('lambda-node-logger')
+var logger = require('lambda-logger-node')
 
 exports.handler = logger(handler)
 
@@ -74,7 +74,7 @@ function handler (event, context, callback) {
 Or, with more middleware
 
 ```javascript
-var logger = require('lambda-node-logger')
+var logger = require('lambda-logger-node')
 var moreMiddleware = require('more-middleware')
 
 exports.handler = logger(moreMiddleware(handler))
@@ -88,7 +88,7 @@ Or, with functional composition
 
 ```javascript
 var compose = require('compose-func')
-var logger = require('lambda-node-logger')
+var logger = require('lambda-logger-node')
 var moreMiddleware = require('more-middleware')
 
 exports.handler = compose(logger, moreMiddleware)(handler)
@@ -103,7 +103,7 @@ function handler (event, context, callback) {
 If you do not like the replacement of `console.log` you can restore the original one and use the `log` function on the module export to get the prepended logs.
 
 ```javascript
-var logger = require('lambda-node-logger')
+var logger = require('lambda-logger-node')
 
 exports.handler = logger(handler)
 
@@ -131,7 +131,7 @@ The `console.log` replacement prepends on any configured key/value pairs using a
 You can set this to any value, at any time, to change the log-prepend output. The replacement values inside of `{{traceId}}` can be set with `[[module.export]].setKey(key, value)`. Values can be either literals (string, integer, object) or functions. If a function is used, it will be called with no arguments at log-time to get the value (this is actually how the `{{date}}` token is implemented).
 
 ```javascript
-var logger = require('lambda-node-logger')
+var logger = require('lambda-logger-node')
 // Add more values
 logger.format += ' someCustomValue={{custom1}} anotherCustomValue={{custom2}}'
 
