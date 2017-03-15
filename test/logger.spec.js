@@ -17,7 +17,9 @@ var loggerInfo
 var logCalls = []
 logCalls.last = () => logCalls.length ? logCalls[logCalls.length - 1] : null
 
-var prepareConsole = () => { console.log = console.warn = console.error = console.info = function () { logCalls.push(Array.prototype.slice.call(arguments)) } }
+var prepareConsole = () => {
+  console.log = console.warn = console.error = console.info = function () { logCalls.push(Array.prototype.slice.call(arguments)) }
+}
 var testLogWrapper = () => {
   loggerLog = console.log
   loggerWarn = console.warn
@@ -35,6 +37,9 @@ const defaultContext = {
   awsRequestId: 'asdfghjkl',
   functionName: 'test-function',
   functionVersion: 'test-version',
+  requestContext: {
+    requestId: '4ad0d369-08e2-11e7-9df7-6d968da958aa'
+  },
   // You will need to override these for any tests that use them
   succeed: () => {},
   fail: () => {},
@@ -55,6 +60,7 @@ const makeLoggerContextTest = (testSetup, event, context, callback) => {
 
 const makeLogger = (event, context, callback) => {
   prepareConsole()
+  logCalls.length = 0
   var l = logModule((e, c, cb) => { testLogWrapper(); cb(null, 'done') })
   l(Object.assign({}, defaultEvent, event), Object.assign({}, defaultContext, context), (err, result) => {
     console.log = originalLog
@@ -98,7 +104,9 @@ test('logger creates access log when callback is called', t => {
     if (err) t.end(err)
     var lastCall = logCalls.last()
     var accessLog = lastCall.slice(2).join(' ')
-    t.ok(accessLog.match(/requestURL=\/some\/route requestMethod=GET elapsedTime=-?\d+ accessToken=Bearer 12 restApiId=request-id/))
+    // originalLog(`debug: ${logCalls.length}\n`, logCalls.join('\n\n'))
+    // originalLog('access log', accessLog)
+    t.ok(accessLog.match(/requestURL=\/some\/route requestMethod=GET elapsedTime=-?\d+ accessToken=Bearer 12 restApiId=request-id apigTraceId=4ad0d369-08e2-11e7-9df7-6d968da958aa/))
   })
 })
 
@@ -166,6 +174,30 @@ test('logger prepends utility method severity levels', t => {
   t.ok(logCalls.last()[0].match(/severity=info/))
   logModule.error('test')
   t.ok(logCalls.last()[0].match(/severity=error/))
+  t.end()
+})
+
+test('logger should not log when below minimum severity', t => {
+  makeLogger()
+  var logLength = logCalls.length
+  logModule.setMinimumLogLevel('debug')
+  logModule.trace('test')
+  t.equal(logCalls.length, logLength, 'log did not get called')
+  t.end()
+})
+
+test('logger should log when above minimum severity', t => {
+  makeLogger()
+  var logLength = logCalls.length
+  logModule.setMinimumLogLevel('debug')
+  logModule.info('test')
+  t.equal(logCalls.length, logLength + 1, 'log got called')
+  t.end()
+})
+
+test('logger should throw if minimum log level is invalid', t => {
+  makeLogger()
+  t.throws(() => logModule.setMinimumLogLevel('garbage'), 'does not allow garbage')
   t.end()
 })
 

@@ -10,7 +10,7 @@
     "style": "standard \"src/**/*.js\" | snazzy",
     "style:fix": "standard \"src/**/*.js\" --fix",
     "test": "npm run style && blue-tape test/**/**.js | ./node_modules/.bin/tap-spec",
-    "test:watch": "npm run test -s & ./node_modules/.bin/chokidar 'src/**/*.js' 'test/**/*.js' -c \"./node_modules/.bin/blue-tape test/**/**.js | node_modules/.bin/tap-spec\""
+    "test:watch": "npm run test -s & ./node_modules/.bin/chokidar 'src/**/*.js' 'test/**/*.js' --polling -c \"./node_modules/.bin/blue-tape test/**/**.js | node_modules/.bin/tap-spec\""
   },
   "repository": {
     "type": "git",
@@ -26,6 +26,7 @@
     "object-assign": "^4.1.0"
   },
   "devDependencies": {
+    "babel-eslint": "^7.1.1",
     "blue-tape": "^0.2.0",
     "chokidar-cli": "^1.2.0",
     "snazzy": "^5.0.0",

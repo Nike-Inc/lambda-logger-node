@@ -11,7 +11,7 @@ traceId={{traceId}} {{date}} appname={{appname}} version={{version}} severity={{
 
 2. Replaces the lambda `callback` (as well as `context.[fail|done|succeed] for legacy lambdas`) with a function will log an [access log](https://wiki-product.nike.com/display/TF/Logging+Standards#LoggingStandards-AccessLogs) before passing the result onto AWS. It will look something like This
 ```
-requestURL=/some/route requestMethod=GET elapsedTime=-11 accessToken=Bearer 12 restApiId=request-id
+requestURL=/some/route requestMethod=GET elapsedTime=-11 accessToken=Bearer 12 restApiId=request-id apigTraceId=098sgs7d-fi2n465-12msr
 ```
 
 # Installation
@@ -146,3 +146,16 @@ logger.setKey('custom2', () => Math.random())
 // customize date format
 logger.setKey('data', () => customDateFormattter(Date.now()))
 ```
+
+# Log Levels
+
+The logger provides two methods to log with different severity.
+
+* `console.(warn|info|error|log)`
+* `logger.(trace|debug|info|warn|error|fatal)`
+
+These will include a `severity=${loglevel}` entry in the log. 
+
+## Setting Minimum Log Level
+
+Use `logger.setMinimumLogLevel('trace|debug|info|warn|error|fatal')` to ignore log levels below the selected one. For example, calling `logger.setMinimumLogLevel('info')` will cause calls to `logger.trace()` to be ignored. This allows the same code to be deployed to development and production, while keeping the production logs quieter.
