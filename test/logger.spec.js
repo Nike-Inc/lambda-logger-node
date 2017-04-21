@@ -31,15 +31,15 @@ const defaultEvent = {
   path: '/some/route',
   method: 'GET',
   headerParams: { Authorization: 'Bearer 12' },
-  requestId: 'request-id'
+  requestId: 'request-id',
+  requestContext: {
+    requestId: '4ad0d369-08e2-11e7-9df7-6d968da958aa'
+  }
 }
 const defaultContext = {
   awsRequestId: 'asdfghjkl',
   functionName: 'test-function',
   functionVersion: 'test-version',
-  requestContext: {
-    requestId: '4ad0d369-08e2-11e7-9df7-6d968da958aa'
-  },
   // You will need to override these for any tests that use them
   succeed: () => {},
   fail: () => {},
@@ -105,7 +105,7 @@ test('logger creates access log when callback is called', t => {
     var lastCall = logCalls.last()
     var accessLog = lastCall.slice(2).join(' ')
     // originalLog(`debug: ${logCalls.length}\n`, logCalls.join('\n\n'))
-    // originalLog('access log', accessLog)
+    originalLog('access log', accessLog)
     t.ok(accessLog.match(/requestURL=\/some\/route requestMethod=GET elapsedTime=-?\d+ accessToken=Bearer 12 restApiId=request-id apigTraceId=4ad0d369-08e2-11e7-9df7-6d968da958aa/))
   })
 })

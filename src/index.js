@@ -83,7 +83,7 @@ function setMdcKeys (event, context) {
   setKey('date', function () { return formatRfc3339(new Date(Date.now())) })
   setKey('appname', context.functionName)
   setKey('version', context.functionVersion)
-  setKey('apigTraceId', context && context.requestContext && context.requestContext.requestId)
+  setKey('apigTraceId', (event && event.requestContext && event.requestContext.requestId) || (context && context.requestContext && context.requestContext.requestId))
 }
 
 function buildAccessLogPrefix (severity) {
