@@ -10,10 +10,12 @@ var originalWarn
 var originalError
 var contextLogMapper
 
+var isSupressingFinalLog = false
 var minimumLogLevel = null
 var logLevelPriority = ['trace', 'debug', 'info', 'warn', 'log', 'error', 'fatal']
 var tokenizer = /{{(.+?)}}/g
 var logFormat = 'traceId={{traceId}} {{date}} appname={{appname}} version={{version}} severity={{severity}}'
+var successFormat = logFormat + 'requestURL={{requestURL}} requestMethod={{requestMethod}} elapsedTime={{elapsedTime}} accessToken={{accessToken}} restApiId={{restApiId}} apigTraceId={{apigTraceId}} result={{result}}'
 var logKeys = {}
 
 module.exports = logModule
@@ -58,11 +60,14 @@ function logModule (handler) {
       }
     })
 
+    isSupressingFinalLog = false
     handler(event, logContext, next)
   }
 }
 
 logModule.format = logFormat
+logModule.successFormat = successFormat
+logModule.errorFormat = successFormat
 logModule.log = log
 logModule.setKey = setKey
 logModule.restoreConsoleLog = restoreConsoleLog
@@ -73,6 +78,7 @@ logModule.warn = logRouter('warn')
 logModule.error = logRouter('error')
 logModule.fatal = logRouter('fatal')
 logModule.setMinimumLogLevel = setMinimumLogLevel
+logModule.supressCurrentFinalLog = supressFinalLog
 
 function setKey (keyName, value) {
   logKeys[keyName] = value
@@ -114,6 +120,10 @@ function setMinimumLogLevel (level) {
   minimumLogLevel = level
 }
 
+function supressFinalLog () {
+  isSupressingFinalLog = true
+}
+
 function logWithSeverity (message, severity) {
   // originalLog.call(null, 'severity', severity)
   // Do not log message below the minimumLogLevel
@@ -134,23 +144,27 @@ function logRouter (severity) {
 }
 
 function finalLog (event, context, err, result) {
-  var finalValues = {
-    'requestURL': event.path,
-    'requestMethod': event.method,
-    'elapsedTime': Date.now() - startTime,
-    'accessToken': event.headerParams && event.headerParams.Authorization,
-    'apiKey': null,
-    'restApiId': event.requestId,
-    'apigTraceId': logKeys['apigTraceId'],
-    'restResourceId': null,
-    'result': JSON.stringify(err || result)
-  }
-  var logValues = []
-  objectKeys(finalValues).forEach(function (key) {
-    if (finalValues[key]) logValues.push(key + '=' + finalValues[key])
-  })
-  log.apply(null, logValues)
   restoreConsoleLog()
+  if (isSupressingFinalLog) return
+  var logFormatOriginal = logModule.format
+  if (err && logModule.errorFormat) {
+    logModule.format = logModule.errorFormat
+  } else if (!err && logModule.successFormat) {
+    logModule.format = logModule.successFormat
+  } else {
+    return
+  }
+  // Setup Final Keys
+  setKey('requestURL', event.path)
+  setKey('requestMethod', event.method)
+  setKey('elapsedTime', Date.now() - startTime)
+  setKey('accessToken', event.headerParams && event.headerParams.Authorization)
+  setKey('restApiId', event.requestId)
+  setKey('apigTraceId', logKeys['apigTraceId'])
+  setKey('result', JSON.stringify(err || result))
+  // Log and restore console
+  log('final log')
+  logModule.format = logFormatOriginal
 }
 
 // Utilities

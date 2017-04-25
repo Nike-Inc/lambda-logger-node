@@ -147,6 +147,24 @@ logger.setKey('custom2', () => Math.random())
 logger.setKey('date', () => customDateFormattter(Date.now()))
 ```
 
+# The Final Log
+
+After you return from your handler the logger will make one final log entry with either the error or the result from your handler. This log has a special format controlled by the `logModule.successFormat` and `logModule.errorFormat`. By default they are both the same:
+
+Final log format
+
+```
+var finalFormat = logFormat + 'requestURL={{requestURL}} requestMethod={{requestMethod}} elapsedTime={{elapsedTime}} accessToken={{accessToken}} apiKey={{apiKey}} restApiId={{restApiId}} apigTraceId={{apigTraceId}} restResourceId={{restResourceId}} result={{result}}'
+```
+
+You can customize either format by setting `logModule.successFormat` or `logModule.errorFormat` properties. If the `logModule.successFormat` or `logModule.errorFormat` are falsy when the handler results in a success or failure, respectively, no final log will be made.
+
+> Warning: If you clear the `logModule.successFormat` or `logModule.errorFormat` at the end of your handler to supress the final log all future success or failure logs will be supressed. This is because the logger does not reset these properties on each lambda invocation. If you only want to supress a single final log you can call `logModule.supressCurrentFinalLog`, or make sure to reset the `logModule.successFormat` or `logModule.errorFormat` at the beginning of your handler.
+
+## Supressing the final log
+
+You can stop the logger from logging all success or error logs by setting `logModule.successFormat` or `logModule.errorFormat` to a falsy value. However, these are global properties and persist beyond a single lambda invocation. If you want to supress *only the current invocation's final log* you can call `logModule.supressCurrentFinalLog()`. The flag this call sets is reset every time the handler runs, so you cannot call it before your handler. It is intended to be called at the end of the handler to cancel *just the current invocation*.
+
 # Log Levels
 
 The logger provides two methods to log with different severity.
