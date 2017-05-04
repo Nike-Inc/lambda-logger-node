@@ -29,9 +29,8 @@ var testLogWrapper = () => {
 
 const defaultEvent = {
   path: '/some/route',
-  method: 'GET',
+  httpMethod: 'GET',
   headerParams: { Authorization: 'Bearer 12' },
-  requestId: 'request-id',
   requestContext: {
     requestId: '4ad0d369-08e2-11e7-9df7-6d968da958aa'
   }
@@ -63,7 +62,7 @@ const makeLogger = (options, callback) => {
   prepareConsole()
   logCalls.length = 0
   var l = logModule((e, c, cb) => { testLogWrapper(); if (options.callHook) options.callHook(); cb(options.error, 'done') })
-  l(Object.assign({}, defaultEvent, options.event), Object.assign({}, defaultContext, options.context), (err, result) => {
+  l(Object.assign({}, options.event || defaultEvent), Object.assign({}, options.context || defaultContext), (err, result) => {
     console.log = originalLog
     console.error = originalError
     console.info = originalInfo
@@ -107,7 +106,23 @@ test('logger creates access log when callback is called', t => {
     var accessLog = lastCall[0]
     // originalLog(`debug: ${logCalls.length}\n`, logCalls.join('\n\n'))
     // originalLog('access log', accessLog)
-    t.ok(accessLog.match(/requestURL=\/some\/route requestMethod=GET elapsedTime=-?\d+ accessToken=Bearer 12 restApiId=request-id apigTraceId=4ad0d369-08e2-11e7-9df7-6d968da958aa/))
+    t.ok(accessLog.match(/requestURL=\/some\/route requestMethod=GET elapsedTime=-?\d+ accessToken=Bearer 12 apigTraceId=4ad0d369-08e2-11e7-9df7-6d968da958aa/))
+  })
+})
+
+test('logger creates allows custom successFormat log', t => {
+  t.plan(1)
+  var original = logModule.successFormat
+  logModule.successFormat = logModule.successFormat.replace('accessToken={{accessToken}}', 'accessToken={{customAccessToken}}')
+  logModule.setKey('customAccessToken', 'Bearer custom')
+  makeLogger(null, (err, result) => {
+    logModule.successFormat = original
+    if (err) t.end(err)
+    var lastCall = logCalls.last()
+    var accessLog = lastCall[0]
+    // originalLog(`debug: ${logCalls.length}\n`, logCalls.join('\n\n'))
+    // originalLog('access log', accessLog)
+    t.ok(accessLog.match(/requestURL=\/some\/route requestMethod=GET elapsedTime=-?\d+ accessToken=Bearer custom apigTraceId=4ad0d369-08e2-11e7-9df7-6d968da958aa/))
   })
 })
 
@@ -121,7 +136,7 @@ test('logger skips access log when logModule.successFormat is falsy', t => {
     var lastCall = logCalls.last()
     // var accessLog = lastCall[0]
     // originalLog(`debug: ${logCalls.length}\n`, logCalls.join('\n\n'))
-    originalLog('access log', lastCall)
+    // originalLog('access log', lastCall)
     t.ok(lastCall === null, 'access log was not made')
     // t.ok(accessLog.match(/requestURL=\/some\/route requestMethod=GET elapsedTime=-?\d+ accessToken=Bearer 12 restApiId=request-id apigTraceId=4ad0d369-08e2-11e7-9df7-6d968da958aa/))
   })
@@ -136,7 +151,7 @@ test('logger skips access log when logModule.errorFormat is falsy', t => {
     var lastCall = logCalls.last()
     // var accessLog = lastCall[0]
     // originalLog(`debug: ${logCalls.length}\n`, logCalls.join('\n\n'))
-    originalLog('access log', lastCall, err)
+    // originalLog('access log', lastCall, err)
     t.ok(err, 'error returned')
     t.ok(lastCall === null, 'access log was not made')
     // t.ok(accessLog.match(/requestURL=\/some\/route requestMethod=GET elapsedTime=-?\d+ accessToken=Bearer 12 restApiId=request-id apigTraceId=4ad0d369-08e2-11e7-9df7-6d968da958aa/))
@@ -144,15 +159,17 @@ test('logger skips access log when logModule.errorFormat is falsy', t => {
 })
 
 test('logger skips access log when logModule.supressCurrentFinalLog', t => {
-  t.plan(2)
+  t.plan(4)
   makeLogger({ callHook: () => logModule.supressCurrentFinalLog() }, (err, result) => {
     var lastCall = logCalls.last()
-    originalLog('access log', lastCall, err)
+    // originalLog('access log', lastCall, err)
     t.ok(lastCall === null, 'access log was not made')
+    t.notOk(err, 'err is empty')
 
     makeLogger(null, (err, result) => {
       var lastCall = logCalls.last()
-      originalLog('access log', lastCall, err)
+      // originalLog('access log', lastCall, err)
+      t.notOk(err, 'err is empty')
       t.ok(lastCall[0].match(/result=/), 'access log was made')
     })
   })

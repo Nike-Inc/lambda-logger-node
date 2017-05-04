@@ -15,7 +15,7 @@ var minimumLogLevel = null
 var logLevelPriority = ['trace', 'debug', 'info', 'warn', 'log', 'error', 'fatal']
 var tokenizer = /{{(.+?)}}/g
 var logFormat = 'traceId={{traceId}} {{date}} appname={{appname}} version={{version}} severity={{severity}}'
-var successFormat = logFormat + 'requestURL={{requestURL}} requestMethod={{requestMethod}} elapsedTime={{elapsedTime}} accessToken={{accessToken}} restApiId={{restApiId}} apigTraceId={{apigTraceId}} result={{result}}'
+var successFormat = logFormat + 'requestURL={{requestURL}} requestMethod={{requestMethod}} elapsedTime={{elapsedTime}} accessToken={{accessToken}} apigTraceId={{apigTraceId}} result={{result}}'
 var logKeys = {}
 
 module.exports = logModule
@@ -156,11 +156,10 @@ function finalLog (event, context, err, result) {
   }
   // Setup Final Keys
   setKey('requestURL', event.path)
-  setKey('requestMethod', event.method)
-  setKey('elapsedTime', Date.now() - startTime)
+  setKey('requestMethod', event.httpMethod)
   setKey('accessToken', event.headerParams && event.headerParams.Authorization)
-  setKey('restApiId', event.requestId)
   setKey('apigTraceId', logKeys['apigTraceId'])
+  setKey('elapsedTime', Date.now() - startTime)
   setKey('result', JSON.stringify(err || result))
   // Log and restore console
   log('final log')
