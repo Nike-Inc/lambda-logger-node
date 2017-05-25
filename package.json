@@ -1,6 +1,6 @@
 {
   "name": "@nike/lambda-logger-node",
-  "version": "0.5.1",
+  "version": "1.0.0",
   "description": "A logger middleware for AWS Lambda functions",
   "main": "src/index.js",
   "files": [
@@ -26,10 +26,10 @@
     "object-assign": "^4.1.0"
   },
   "devDependencies": {
-    "babel-eslint": "^7.1.1",
-    "blue-tape": "^0.2.0",
+    "babel-eslint": "^7.2.3",
+    "blue-tape": "^1.0.0",
     "chokidar-cli": "^1.2.0",
-    "snazzy": "^5.0.0",
+    "snazzy": "^7.0.0",
     "standard": "8.1.0",
     "tap-spec": "^4.1.1"
   }
