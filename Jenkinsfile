@@ -15,15 +15,13 @@ node {
         handleError(err)
     }
 
-    if (env.BRANCH_NAME == 'master') {
-        stage 'Publish'
-        try {
-            sh "curl -u ${ARTIFACTORY_USER}:${ARTIFACTORY_PASS} ${ARTIFACTORY_BASE}/auth > .npmrc"
-            sh "echo \"registry=${ARTIFACTORY_BASE}/npm-nike\" >> .npmrc"
-            sh "npm publish --registry ${ARTIFACTORY_BASE}/npm-local"
-        } catch (err) {
-            handleError(err)
-        }
+    stage 'Publish'
+    try {
+        sh "curl -u ${ARTIFACTORY_USER}:${ARTIFACTORY_PASS} ${ARTIFACTORY_BASE}/auth > .npmrc"
+        sh "echo \"registry=${ARTIFACTORY_BASE}/npm-nike\" >> .npmrc"
+        sh "npm publish --registry ${ARTIFACTORY_BASE}/npm-local"
+    } catch (err) {
+        handleError(err)
     }
 }
 
