@@ -31,8 +31,6 @@ function logModule (handler) {
     console.error = logRouter('ERROR')
     originalWarn = console.warn.bind(console)
     console.warn = logRouter('WARN')
-    // originalTrace = console.trace.bind(console)
-    // console.trace = logRouter('TRACE')
 
     contextLogMapper = {
       'INFO': originalInfo,
