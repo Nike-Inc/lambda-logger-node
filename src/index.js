@@ -15,8 +15,8 @@ var isSupressingFinalLog = false
 var minimumLogLevel = null
 var logLevelPriority = ['TRACE', 'INFO', 'WARN', 'ERROR']
 var tokenizer = /{{(.+?)}}/g
-var logFormat = 'traceId={{traceId}} {{date}} appname={{appname}} version={{version}} severity={{severity}}'
-var successFormat = logFormat + 'requestURL={{requestURL}} requestMethod={{requestMethod}} elapsedTime={{elapsedTime}} accessToken={{accessToken}} apigTraceId={{apigTraceId}} result={{result}}'
+var logFormat = 'traceId={{traceId}} {{date}} appname={{appname}} version={{version}} severity={{severity}} '
+var successFormat = logFormat + 'requestURL={{requestURL}} requestMethod={{requestMethod}} elapsedTime={{elapsedTime}} accessToken={{accessToken}} apigTraceId={{apigTraceId}} result={{result}} '
 var logKeys = {}
 
 module.exports = logModule
@@ -31,8 +31,8 @@ function logModule (handler) {
     console.error = logRouter('ERROR')
     originalWarn = console.warn.bind(console)
     console.warn = logRouter('WARN')
-    originalTrace = console.warn.bind(console)
-    console.trace = logRouter('TRACE')
+    // originalTrace = console.trace.bind(console)
+    // console.trace = logRouter('TRACE')
 
     contextLogMapper = {
       'INFO': originalInfo,

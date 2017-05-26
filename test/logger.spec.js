@@ -10,6 +10,7 @@ var originalLog = console.log
 var originalWarn = console.warn
 var originalInfo = console.info
 var originalError = console.error
+var originalTrace = console.trace
 var loggerLog
 var loggerWarn
 var loggerError
@@ -51,6 +52,7 @@ const makeLoggerContextTest = (testSetup, event, context, callback) => {
   l(Object.assign({}, defaultEvent, event), Object.assign({}, defaultContext, context), (err, result) => {
     console.log = originalLog
     console.error = originalError
+    console.trace = originalTrace
     console.info = originalInfo
     console.warn = originalWarn
     if (callback) callback(err, result)
@@ -66,6 +68,7 @@ const makeLogger = (options, callback) => {
     console.log = originalLog
     console.error = originalError
     console.info = originalInfo
+    console.trace = originalTrace
     console.warn = originalWarn
     if (callback) callback(err, result)
   })
@@ -158,7 +161,7 @@ test('logger skips access log when logModule.errorFormat is falsy', t => {
   })
 })
 
-test.only('logger skips access log when logModule.supressCurrentFinalLog', t => {
+test('logger skips access log when logModule.supressCurrentFinalLog', t => {
   t.plan(4)
   makeLogger({ callHook: () => logModule.supressCurrentFinalLog() }, (err, result) => {
     var lastCall = logCalls.last()
@@ -241,7 +244,7 @@ test('logger prepends utility method severity levels', t => {
 test('logger should not log when below minimum severity', t => {
   makeLogger()
   var logLength = logCalls.length
-  logModule.setMinimumLogLevel('TRACE')
+  logModule.setMinimumLogLevel('INFO')
   logModule.trace('test')
   t.equal(logCalls.length, logLength, 'log did not get called')
   t.end()
@@ -267,7 +270,7 @@ test('logger should respect default severity set', t => {
   logModule.setKey('severity', 'WARN')
   logModule.log('test')
   var lastCall = logCalls.last()
-  t.ok(lastCall[0].match(/traceId=asdfghjkl (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z) appname=test-function version=test-version severity=warn/))
+  t.ok(lastCall[0].match(/traceId=asdfghjkl (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z) appname=test-function version=test-version severity=WARN/))
   t.end()
 })
 
@@ -276,11 +279,11 @@ test('logger should work if severity is removed from prefix', t => {
   logModule.logFormat = 'traceId={{traceId}} severity={{severity}} {{date}} appname={{appname}}'
   logModule.log('test')
   var lastCall = logCalls.last()
-  t.ok(!lastCall[0].match(/severity=info/))
+  t.ok(!lastCall[0].match(/severity=INFO/))
   logModule.logFormat = 'traceId={{traceId}} someCustomValue={{custom1}} {{date}} appname={{appname}}'
   logModule.log('test')
   lastCall = logCalls.last()
-  t.ok(!lastCall[0].match(/severity=info/))
+  t.ok(!lastCall[0].match(/severity=INFO/))
   t.end()
 })
 
