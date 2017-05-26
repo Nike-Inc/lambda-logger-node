@@ -8,14 +8,15 @@ var originalLog
 var originalInfo
 var originalWarn
 var originalError
+var originalTrace
 var contextLogMapper
 
 var isSupressingFinalLog = false
 var minimumLogLevel = null
-var logLevelPriority = ['trace', 'debug', 'info', 'warn', 'log', 'error', 'fatal']
+var logLevelPriority = ['TRACE', 'INFO', 'WARN', 'ERROR']
 var tokenizer = /{{(.+?)}}/g
-var logFormat = 'traceId={{traceId}} {{date}} appname={{appname}} version={{version}} severity={{severity}}'
-var successFormat = logFormat + 'requestURL={{requestURL}} requestMethod={{requestMethod}} elapsedTime={{elapsedTime}} accessToken={{accessToken}} apigTraceId={{apigTraceId}} result={{result}}'
+var logFormat = 'traceId={{traceId}} {{date}} appname={{appname}} version={{version}} severity={{severity}} '
+var successFormat = logFormat + 'requestURL={{requestURL}} requestMethod={{requestMethod}} elapsedTime={{elapsedTime}} accessToken={{accessToken}} apigTraceId={{apigTraceId}} result={{result}} '
 var logKeys = {}
 
 module.exports = logModule
@@ -25,16 +26,17 @@ function logModule (handler) {
     originalLog = console.log.bind(console)
     console.log = log
     originalInfo = console.info.bind(console)
-    console.info = logRouter('info')
+    console.info = logRouter('INFO')
     originalError = console.error.bind(console)
-    console.error = logRouter('error')
+    console.error = logRouter('ERROR')
     originalWarn = console.warn.bind(console)
-    console.warn = logRouter('warn')
+    console.warn = logRouter('WARN')
 
     contextLogMapper = {
-      'info': originalInfo,
-      'warn': originalWarn,
-      'error': originalError
+      'INFO': originalInfo,
+      'WARN': originalWarn,
+      'ERROR': originalError,
+      'TRACE': originalTrace
     }
 
     // Create initial values from context
@@ -71,12 +73,10 @@ logModule.errorFormat = successFormat
 logModule.log = log
 logModule.setKey = setKey
 logModule.restoreConsoleLog = restoreConsoleLog
-logModule.trace = logRouter('trace')
-logModule.debug = logRouter('debug')
-logModule.info = logRouter('info')
-logModule.warn = logRouter('warn')
-logModule.error = logRouter('error')
-logModule.fatal = logRouter('fatal')
+logModule.trace = logRouter('TRACE')
+logModule.info = logRouter('INFO')
+logModule.warn = logRouter('WARN')
+logModule.error = logRouter('ERROR')
 logModule.setMinimumLogLevel = setMinimumLogLevel
 logModule.supressCurrentFinalLog = supressFinalLog
 
@@ -93,7 +93,7 @@ function setMdcKeys (event, context) {
 }
 
 function buildAccessLogPrefix (severity) {
-  var prefix = logModule.format.replace(/{{severity}}/, severity || logKeys['severity'] || 'info')
+  var prefix = logModule.format.replace(/{{severity}}/, severity || logKeys['severity'] || 'INFO')
   return prefix.replace(tokenizer, getToken)
 }
 
@@ -107,6 +107,7 @@ function restoreConsoleLog () {
   console.warn = originalWarn
   console.error = originalError
   console.info = originalInfo
+  console.trace = originalTrace
 }
 
 function log () {
