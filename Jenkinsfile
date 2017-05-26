@@ -15,7 +15,7 @@ node {
         handleError(err)
     }
 
-    if (${env.BRANCH_NAME} === 'master') {
+    if (${env.BRANCH_NAME} == 'master') {
         stage 'Publish'
         try {
             sh "curl -u ${ARTIFACTORY_USER}:${ARTIFACTORY_PASS} ${ARTIFACTORY_BASE}/auth > .npmrc"
