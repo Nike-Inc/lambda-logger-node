@@ -8,12 +8,11 @@ var originalLog
 var originalInfo
 var originalWarn
 var originalError
-var originalTrace
 var contextLogMapper
 
 var isSupressingFinalLog = false
 var minimumLogLevel = null
-var logLevelPriority = ['TRACE', 'INFO', 'WARN', 'ERROR']
+var logLevelPriority = ['DEBUG', 'INFO', 'WARN', 'ERROR']
 var tokenizer = /{{(.+?)}}/g
 var logFormat = 'traceId={{traceId}} {{date}} appname={{appname}} version={{version}} severity={{severity}} '
 var successFormat = logFormat + 'requestURL={{requestURL}} requestMethod={{requestMethod}} elapsedTime={{elapsedTime}} accessToken={{accessToken}} apigTraceId={{apigTraceId}} result={{result}} '
@@ -31,12 +30,13 @@ function logModule (handler) {
     console.error = logRouter('ERROR')
     originalWarn = console.warn.bind(console)
     console.warn = logRouter('WARN')
+    console.debug = logRouter('DEBUG')
 
     contextLogMapper = {
       'INFO': originalInfo,
       'WARN': originalWarn,
       'ERROR': originalError,
-      'TRACE': originalTrace
+      'DEBUG': originalLog
     }
 
     // Create initial values from context
@@ -73,7 +73,7 @@ logModule.errorFormat = successFormat
 logModule.log = log
 logModule.setKey = setKey
 logModule.restoreConsoleLog = restoreConsoleLog
-logModule.trace = logRouter('TRACE')
+logModule.debug = logRouter('DEBUG')
 logModule.info = logRouter('INFO')
 logModule.warn = logRouter('WARN')
 logModule.error = logRouter('ERROR')
@@ -107,7 +107,7 @@ function restoreConsoleLog () {
   console.warn = originalWarn
   console.error = originalError
   console.info = originalInfo
-  console.trace = originalTrace
+  console.debug = undefined
 }
 
 function log () {
