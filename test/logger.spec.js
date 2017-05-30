@@ -10,7 +10,7 @@ var originalLog = console.log
 var originalWarn = console.warn
 var originalInfo = console.info
 var originalError = console.error
-var originalTrace = console.trace
+var originalTrace = console.debug
 var loggerLog
 var loggerWarn
 var loggerError
@@ -52,7 +52,7 @@ const makeLoggerContextTest = (testSetup, event, context, callback) => {
   l(Object.assign({}, defaultEvent, event), Object.assign({}, defaultContext, context), (err, result) => {
     console.log = originalLog
     console.error = originalError
-    console.trace = originalTrace
+    console.debug = originalTrace
     console.info = originalInfo
     console.warn = originalWarn
     if (callback) callback(err, result)
@@ -68,7 +68,7 @@ const makeLogger = (options, callback) => {
     console.log = originalLog
     console.error = originalError
     console.info = originalInfo
-    console.trace = originalTrace
+    console.debug = originalTrace
     console.warn = originalWarn
     if (callback) callback(err, result)
   })
@@ -232,8 +232,8 @@ test('logger prepends utility method severity levels', t => {
   makeLogger()
   logModule.warn('test')
   t.ok(logCalls.last()[0].match(/severity=WARN/))
-  logModule.trace('test')
-  t.ok(logCalls.last()[0].match(/severity=TRACE/))
+  logModule.debug('test')
+  t.ok(logCalls.last()[0].match(/severity=DEBUG/))
   logModule.info('test')
   t.ok(logCalls.last()[0].match(/severity=INFO/))
   logModule.error('test')
@@ -245,7 +245,7 @@ test('logger should not log when below minimum severity', t => {
   makeLogger()
   var logLength = logCalls.length
   logModule.setMinimumLogLevel('INFO')
-  logModule.trace('test')
+  logModule.debug('test')
   t.equal(logCalls.length, logLength, 'log did not get called')
   t.end()
 })
@@ -253,7 +253,7 @@ test('logger should not log when below minimum severity', t => {
 test('logger should log when above minimum severity', t => {
   makeLogger()
   var logLength = logCalls.length
-  logModule.setMinimumLogLevel('TRACE')
+  logModule.setMinimumLogLevel('DEBUG')
   logModule.info('test')
   t.equal(logCalls.length, logLength + 1, 'log got called')
   t.end()
