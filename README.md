@@ -169,11 +169,11 @@ You can stop the logger from logging all success or error logs by setting `logMo
 
 The logger provides two methods to log with different severity.
 
-* `console.(warn|info|error|log)`
-* `logger.(trace|debug|info|warn|error|fatal)`
+* `console.(warn|info|error|log|debug)`
+* `logger.(debug|info|warn|error)`
 
 These will include a `severity=${loglevel}` entry in the log. 
 
 ## Setting Minimum Log Level
 
-Use `logger.setMinimumLogLevel('trace|debug|info|warn|error|fatal')` to ignore log levels below the selected one. For example, calling `logger.setMinimumLogLevel('info')` will cause calls to `logger.trace()` to be ignored. This allows the same code to be deployed to development and production, while keeping the production logs quieter.
+Use `logger.setMinimumLogLevel('debug|info|warn|error')` to ignore log levels below the selected one. For example, calling `logger.setMinimumLogLevel('info')` will cause calls to `logger.debug()` to be ignored. This allows the same code to be deployed to development and production, while keeping the production logs quieter.
