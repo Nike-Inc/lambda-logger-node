@@ -14,7 +14,7 @@ var isSupressingFinalLog = false
 var minimumLogLevel = null
 var logLevelPriority = ['DEBUG', 'INFO', 'WARN', 'ERROR']
 var tokenizer = /{{(.+?)}}/g
-var logFormat = 'traceId={{traceId}} {{date}} appname={{appname}} version={{version}} severity={{severity}} '
+var logFormat = 'traceId={{traceId}} {{date}} appName={{appname}} version={{version}} severity={{severity}} '
 var successFormat = logFormat + 'requestURL={{requestURL}} requestMethod={{requestMethod}} elapsedTime={{elapsedTime}} accessToken={{accessToken}} apigTraceId={{apigTraceId}} result={{result}} '
 var logKeys = {}
 
