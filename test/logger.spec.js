@@ -18,6 +18,8 @@ var loggerInfo
 var logCalls = []
 logCalls.last = () => logCalls.length ? logCalls[logCalls.length - 1] : null
 
+var log = (...args) => console.log(...args.map(a => require('util').inspect(a, { colors: true, depth: null }))) // eslint-disable-line
+
 var prepareConsole = () => {
   console.log = console.warn = console.error = console.info = function () { logCalls.push(Array.prototype.slice.call(arguments)) }
 }
@@ -97,7 +99,8 @@ test('logger prepends trace values on logs', t => {
   makeLogger()
   loggerLog('test')
   var lastCall = logCalls.last()
-  t.ok(lastCall[0].match(/traceId=asdfghjkl (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z) appname=test-function version=test-version/))
+  // log(lastCall)
+  t.ok(lastCall[0].match(/traceId=asdfghjkl (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z) appName=test-function version=test-version/))
   t.end()
 })
 
@@ -208,7 +211,7 @@ test('logger prepends default severity of info', t => {
   makeLogger()
   logModule.log('test')
   var lastCall = logCalls.last()
-  t.ok(lastCall[0].match(/traceId=asdfghjkl (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z) appname=test-function version=test-version severity=INFO/))
+  t.ok(lastCall[0].match(/traceId=asdfghjkl (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z) appName=test-function version=test-version severity=INFO/))
   t.end()
 })
 
@@ -270,17 +273,17 @@ test('logger should respect default severity set', t => {
   logModule.setKey('severity', 'WARN')
   logModule.log('test')
   var lastCall = logCalls.last()
-  t.ok(lastCall[0].match(/traceId=asdfghjkl (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z) appname=test-function version=test-version severity=WARN/))
+  t.ok(lastCall[0].match(/traceId=asdfghjkl (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z) appName=test-function version=test-version severity=WARN/))
   t.end()
 })
 
 test('logger should work if severity is removed from prefix', t => {
   makeLogger()
-  logModule.logFormat = 'traceId={{traceId}} severity={{severity}} {{date}} appname={{appname}}'
+  logModule.logFormat = 'traceId={{traceId}} severity={{severity}} {{date}} appName={{appname}}'
   logModule.log('test')
   var lastCall = logCalls.last()
   t.ok(!lastCall[0].match(/severity=INFO/))
-  logModule.logFormat = 'traceId={{traceId}} someCustomValue={{custom1}} {{date}} appname={{appname}}'
+  logModule.logFormat = 'traceId={{traceId}} someCustomValue={{custom1}} {{date}} appName={{appname}}'
   logModule.log('test')
   lastCall = logCalls.last()
   t.ok(!lastCall[0].match(/severity=INFO/))
