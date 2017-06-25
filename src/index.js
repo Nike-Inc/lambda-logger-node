@@ -4,7 +4,7 @@ var assign = require('object-assign')
 var objectKeys = function(o,k,r){r=[];for(k in o)r.hasOwnProperty.call(o,k)&&r.push(k);return r} // eslint-disable-line
 
 var startTime = Date.now()
-var originalLog
+var originalLog = console.log.bind(console)
 var originalInfo
 var originalWarn
 var originalError
@@ -130,7 +130,7 @@ function logWithSeverity (message, severity) {
   if (!canSeverityLog(severity)) {
     return
   }
-  var contextLogger = contextLogMapper[severity] || originalLog
+  var contextLogger = contextLogMapper && contextLogMapper[severity] ? contextLogMapper[severity] : originalLog
   return contextLogger.apply(null, [buildAccessLogPrefix(severity), '|'].concat(message))
 }
 
