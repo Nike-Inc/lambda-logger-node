@@ -14,6 +14,7 @@ node {
     } catch (err) {
         handleError(err)
     }
+
     stage 'Publish'
     try {
         sh "curl -u ${ARTIFACTORY_USER}:${ARTIFACTORY_PASS} ${ARTIFACTORY_BASE}/auth > .npmrc"
