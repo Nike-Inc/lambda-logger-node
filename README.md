@@ -1,6 +1,6 @@
 # lambda-logger-node
 
-A middleware logger that implements the [SOA+ access logging](https://wiki-product.nike.com/display/TF/Logging+Standards#LoggingStandards-LogFormatPattern) pattern for use in AWS NodeJS Lambdas
+A middleware logger that implements the MDC logging pattern for use in AWS NodeJS Lambdas
 
 This logger does two things.
 
@@ -9,52 +9,16 @@ This logger does two things.
 traceId={{traceId}} {{date}} appname={{appname}} version={{version}} severity={{severity}} | {{originalMessage}}
 ```
 
-2. Replaces the lambda `callback` (as well as `context.[fail|done|succeed] for legacy lambdas`) with a function will log an [access log](https://wiki-product.nike.com/display/TF/Logging+Standards#LoggingStandards-AccessLogs) before passing the result onto AWS. It will look something like This
+2. Replaces the lambda `callback` (as well as `context.[fail|done|succeed] for legacy lambdas`) with a function will log an access log before passing the result onto AWS. It will look something like This
 ```
 requestURL=/some/route requestMethod=GET elapsedTime=-11 accessToken=Bearer 12 restApiId=request-id apigTraceId=098sgs7d-fi2n465-12msr
 ```
 
 # Installation
 
-
-You have two installation options. The private Nike npm registry, or directly from bitbucket as a git package. The private npm method is the recommended one, because it maintains the safety of npm version ranges.
-
-## Private npm
-
-If you want to install with npm you will need to configure npm to use the private Nike npm registry with the `@nike` npm scope. To do this, create a file called `.npmrc` with the following contents
-
 ```
-@nike:registry=http://artifactory.nike.com/artifactory/api/npm/npm-nike/
+npm install lambda-logger-node
 ```
-
-The `.npmrc` file can either be **project-level**, meaning it is in the root of your project, alongside the `package.json` file, or it can be in your user directory `~/.npmrc`. The per-project file simplifies your build process, since the build machine doesn't need any additional configuration, but it must be mode `600` (`chmod 600 .npmrc`) and it must be duplicated in every project you want to use it in. The user directory file means your build machine needs the same `.npmrc` file.
-
-It's up to you which one to use, both work. Once that is done, install from npm as normal.
-
-```
-npm install --save @nike/lambda-logger-node
-```
-
-Then, require the package with `var cerberus = require('@nike/lambda-logger-node')`
-
-If you are also using nike packages that are unscoped (that don't use the `@nike` prefix), you will need to include the unscoped registry in your `.npmrc`
-
-```
-registry=http://artifactory.nike.com/artifactory/api/npm/npm-nike
-```
-
-These are not mutually exclusive, but some problems have occured in the past with both entries. In general, when using Nike npm packages you should prefer to install with the `@nike` scope (most Nike packages are published there). If you run into an issues, please file an bug or let someone know in the `#js-cd` channel on Nike Digital's Slack.
-
-## Install as git package
-
-Installing with a git package has the advantage of not required **any** additional configuration on your machine or the build machine, but it requires that you have read access to the repository and produces a dependency entry in `package.json` that includes the entire url. If you don't have read permission on this repository, this method won't work for you. It also stops semantic versioning from working, so you lose the install upgrade safety of npm version ranges.
-
-To install, just run the following command
-
-```
-npm install --save git+http://stash.pes.nike.com/scm/trsf/lambda-logger-node.git
-```
-
 
 # Usage
 

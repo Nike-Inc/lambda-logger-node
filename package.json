@@ -1,5 +1,5 @@
 {
-  "name": "@nike/lambda-logger-node",
+  "name": "lambda-logger-node",
   "version": "2.0.2",
   "description": "A logger middleware for AWS Lambda functions",
   "main": "src/index.js",
@@ -14,7 +14,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "ssh://git@git.nike.net:NextGenPlatforms/lambda-logger-node.git"
+    "url": "ssh:/git@github.com:Nike-Inc/lambda-logger-node.git"
   },
   "keywords": [
     "lambda",
