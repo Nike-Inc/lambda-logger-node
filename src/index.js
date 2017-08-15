@@ -1,13 +1,13 @@
 'use strict'
 
-var assign = require('object-assign')
 var objectKeys = function(o,k,r){r=[];for(k in o)r.hasOwnProperty.call(o,k)&&r.push(k);return r} // eslint-disable-line
 
 var startTime = Date.now()
+var useDefaultLog = false
 var originalLog = console.log.bind(console)
-var originalInfo
-var originalWarn
-var originalError
+var originalInfo = console.info.bind(console)
+var originalWarn = console.warn.bind(console)
+var originalError = console.error.bind(console)
 var contextLogMapper
 
 var isSupressingFinalLog = false
@@ -22,15 +22,17 @@ module.exports = logModule
 
 function logModule (handler) {
   return function (event, context, callback) {
-    originalLog = console.log.bind(console)
-    console.log = log
-    originalInfo = console.info.bind(console)
-    console.info = logRouter('INFO')
-    originalError = console.error.bind(console)
-    console.error = logRouter('ERROR')
-    originalWarn = console.warn.bind(console)
-    console.warn = logRouter('WARN')
-    console.debug = logRouter('DEBUG')
+    if (!useDefaultLog) {
+      originalLog = console.log.bind(console)
+      console.log = log
+      originalInfo = console.info.bind(console)
+      console.info = logRouter('INFO')
+      originalError = console.error.bind(console)
+      console.error = logRouter('ERROR')
+      originalWarn = console.warn.bind(console)
+      console.warn = logRouter('WARN')
+      console.debug = logRouter('DEBUG')
+    }
 
     contextLogMapper = {
       'INFO': originalInfo,
@@ -47,7 +49,7 @@ function logModule (handler) {
       callback(err, result)
     }
 
-    var logContext = assign({}, context, {
+    var logContext = Object.assign({}, context, {
       succeed: function (result) {
         finalLog(event, context, null, result)
         context.succeed(result)
@@ -108,6 +110,7 @@ function restoreConsoleLog () {
   console.error = originalError
   console.info = originalInfo
   console.debug = undefined
+  useDefaultLog = true
 }
 
 function log () {

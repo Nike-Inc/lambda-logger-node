@@ -22,9 +22,7 @@
   ],
   "author": "Tim Kye",
   "license": "UNLICENSED",
-  "dependencies": {
-    "object-assign": "^4.1.0"
-  },
+  "dependencies": {},
   "devDependencies": {
     "babel-eslint": "^7.2.3",
     "blue-tape": "^1.0.0",

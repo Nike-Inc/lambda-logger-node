@@ -97,9 +97,9 @@ test('logger replace other console contexts', t => {
 
 test('logger prepends trace values on logs', t => {
   makeLogger()
-  loggerLog('test')
+  // loggerLog('test')
   var lastCall = logCalls.last()
-  // log(lastCall)
+  log(lastCall)
   t.ok(lastCall[0].match(/traceId=asdfghjkl (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z) appName=test-function version=test-version/))
   t.end()
 })
