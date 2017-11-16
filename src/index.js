@@ -164,7 +164,13 @@ function finalLog (event, context, err, result) {
   setKey('accessToken', event.headerParams && event.headerParams.Authorization)
   setKey('apigTraceId', logKeys['apigTraceId'])
   setKey('elapsedTime', Date.now() - startTime)
-  setKey('result', JSON.stringify(err || result))
+  let logResult
+  try {
+    logResult = JSON.stringify(err || result)
+  } catch (e) {
+    logResult = `Unable to stringify resul: ${e.toString()}`
+  }
+  setKey('result', logResult)
   // Log and restore console
   log('final log')
   logModule.format = logFormatOriginal

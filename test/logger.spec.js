@@ -65,7 +65,7 @@ const makeLogger = (options, callback) => {
   options = options || {}
   prepareConsole()
   logCalls.length = 0
-  var l = logModule((e, c, cb) => { testLogWrapper(); if (options.callHook) options.callHook(); cb(options.error, 'done') })
+  var l = logModule((e, c, cb) => { testLogWrapper(); if (options.callHook) options.callHook(); cb(options.error, options.result || 'done') })
   l(Object.assign({}, options.event || defaultEvent), Object.assign({}, options.context || defaultContext), (err, result) => {
     console.log = originalLog
     console.error = originalError
@@ -300,4 +300,21 @@ test('logger.format allows format changes', t => {
   var lastCall = logCalls.last()
   t.ok(lastCall[0].match(/appName =/), 'should use appName')
   t.end()
+})
+
+test('logger handles result serialization failure', t => {
+  t.plan(1)
+  var original = logModule.successFormat
+  logModule.successFormat = logModule.successFormat.replace('accessToken={{accessToken}}', 'accessToken={{customAccessToken}}')
+  logModule.setKey('customAccessToken', 'Bearer custom')
+  let logResult = { name: test }
+  logResult.recurse = logResult
+  makeLogger({ result: logResult }, (err, result) => {
+    logModule.successFormat = original
+    if (err) t.end(err)
+    var lastCall = logCalls.last()
+    var accessLog = lastCall[0]
+    // console.log('log', accessLog)
+    t.ok(accessLog.match(/circular structure/))
+  })
 })
