@@ -109,7 +109,11 @@ logger.setKey('custom2', () => Math.random())
 
 // customize date format
 logger.setKey('date', () => customDateFormattter(Date.now()))
+
+// Change the log delimiter
+logger.delimiter = ':'
 ```
+
 
 # The Final Log
 

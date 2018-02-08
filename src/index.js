@@ -23,15 +23,18 @@ module.exports = logModule
 function logModule (handler) {
   return function (event, context, callback) {
     if (!useDefaultLog) {
-      originalLog = console.log.bind(console)
-      console.log = log
       originalInfo = console.info.bind(console)
       console.info = logRouter('INFO')
+
       originalError = console.error.bind(console)
       console.error = logRouter('ERROR')
+
       originalWarn = console.warn.bind(console)
       console.warn = logRouter('WARN')
       console.debug = logRouter('DEBUG')
+
+      originalLog = console.log.bind(console)
+      console.log = log
     }
 
     contextLogMapper = {
@@ -69,6 +72,7 @@ function logModule (handler) {
   }
 }
 
+logModule.delimiter = '|'
 logModule.format = logFormat
 logModule.successFormat = successFormat
 logModule.errorFormat = successFormat
@@ -114,7 +118,7 @@ function restoreConsoleLog () {
 }
 
 function log () {
-  return originalLog.apply(null, [buildAccessLogPrefix(), '|'].concat(Array.prototype.slice.call(arguments)))
+  return originalLog.apply(null, [buildAccessLogPrefix(), logModule.delimiter].concat(Array.prototype.slice.call(arguments)))
 }
 
 function setMinimumLogLevel (level) {
@@ -135,7 +139,7 @@ function logWithSeverity (message, severity) {
     return
   }
   var contextLogger = contextLogMapper && contextLogMapper[severity] ? contextLogMapper[severity] : originalLog
-  return contextLogger.apply(null, [buildAccessLogPrefix(severity), '|'].concat(message))
+  return contextLogger.apply(null, [buildAccessLogPrefix(severity), logModule.delimiter].concat(message))
 }
 
 function canSeverityLog (severity) {
