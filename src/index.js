@@ -22,18 +22,19 @@ module.exports = logModule
 
 function logModule (handler) {
   return function (event, context, callback) {
-    if (!useDefaultLog) {
+    // If console.log has not been rebound we are not in a lambda
+    // Binding again will cause recursive overflow
+    if (!useDefaultLog && console.log !== log) {
       originalInfo = console.info.bind(console)
-      console.info = logRouter('INFO')
-
       originalError = console.error.bind(console)
-      console.error = logRouter('ERROR')
-
       originalWarn = console.warn.bind(console)
+      originalLog = console.log.bind(console)
+
+      console.info = logRouter('INFO')
+      console.error = logRouter('ERROR')
       console.warn = logRouter('WARN')
       console.debug = logRouter('DEBUG')
 
-      originalLog = console.log.bind(console)
       console.log = log
     }
 
