@@ -69,7 +69,20 @@ function logModule (handler) {
     })
 
     isSupressingFinalLog = false
-    handler(event, logContext, next)
+    let handlerResult = handler(event, logContext, next)
+    // did not return promise
+    if (!handlerResult || typeof handlerResult.then !== 'function') return
+
+    // handler is using async return
+    return handlerResult
+      .then(result => {
+        finalLog(event, context, null, result)
+        return result
+      })
+      .catch(err => {
+        finalLog(event, context, err, null)
+        throw err
+      })
   }
 }
 
