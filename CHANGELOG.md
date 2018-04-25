@@ -5,6 +5,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 
+## [2.3.0] - 2018-04-25
+## Added
+Support async handlers (return promise instead of using callback)
+
 ## [2.2.1] - 2018-03-02
 ## Fixed
 Possible infinite recursion when running outside of a lambda (again)

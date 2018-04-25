@@ -6,10 +6,10 @@ var logModule = require('../src/index')
 // TAP uses logs for test results
 // Since logger hijacks the console.log, we need to restore it, or TAP breaks
 // We can hijack logger's log though, and capture it's calls
-var originalLog = console.log
-var originalWarn = console.warn
-var originalInfo = console.info
-var originalError = console.error
+var originalLog = console.log.bind(console)
+var originalWarn = console.warn.bind(console)
+var originalInfo = console.info.bind(console)
+var originalError = console.error.bind(console)
 var originalTrace = console.debug
 var loggerLog
 var loggerWarn
@@ -76,6 +76,32 @@ const makeLogger = (options, callback) => {
   })
 }
 
+const makeAsyncLogger = (options, handler = async () => {}) => {
+  options = options || {}
+  prepareConsole()
+  logCalls.length = 0
+  let l = logModule(async (e, c) => {
+    testLogWrapper()
+    return handler(e, c)
+  })
+  let cleanup = () => {
+    console.log = originalLog
+    console.error = originalError
+    console.info = originalInfo
+    console.debug = originalTrace
+    console.warn = originalWarn
+  }
+  return l(Object.assign({}, options.event || defaultEvent), Object.assign({}, options.context || defaultContext))
+    .then(r => {
+      cleanup()
+      return r
+    })
+    .catch(err => {
+      cleanup()
+      throw err
+    })
+}
+
 test('logger should return a function', t => {
   t.ok(typeof logModule === 'function', 'logger is function')
   t.end()
@@ -114,6 +140,30 @@ test('logger creates access log when callback is called', t => {
     // originalLog('access log', accessLog)
     t.ok(accessLog.match(/requestURL=\/some\/route requestMethod=GET elapsedTime=-?\d+ accessToken=Bearer 12 apigTraceId=4ad0d369-08e2-11e7-9df7-6d968da958aa/))
   })
+})
+
+test('logger creates access log when handler returns promise', t => {
+  t.plan(1)
+  return makeAsyncLogger(null, async () => {})
+    .then(r => {
+      var lastCall = logCalls.last()
+      var accessLog = lastCall[0]
+      // originalLog(`debug: ${logCalls.length}\n`, logCalls.join('\n\n'))
+      // originalLog('access log', accessLog)
+      t.ok(accessLog.match(/requestURL=\/some\/route requestMethod=GET elapsedTime=-?\d+ accessToken=Bearer 12 apigTraceId=4ad0d369-08e2-11e7-9df7-6d968da958aa/), 'access log created')
+    })
+})
+
+test.only('logger creates access log when handler is rejected', t => {
+  t.plan(1)
+  return makeAsyncLogger(null, async () => { throw new Error('test rejection') })
+    .catch(r => {
+      var lastCall = logCalls.last()
+      var accessLog = lastCall[0]
+      // originalLog(`debug: ${logCalls.length}\n`, logCalls.join('\n\n'))
+      // originalLog('access log', accessLog)
+      t.ok(accessLog.match(/requestURL=\/some\/route requestMethod=GET elapsedTime=-?\d+ accessToken=Bearer 12 apigTraceId=4ad0d369-08e2-11e7-9df7-6d968da958aa/), 'access log created')
+    })
 })
 
 test('logger creates allows custom successFormat log', t => {
