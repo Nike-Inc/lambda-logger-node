@@ -125,8 +125,24 @@ test('logger prepends trace values on logs', t => {
   makeLogger()
   // loggerLog('test')
   var lastCall = logCalls.last()
-  log(lastCall)
-  t.ok(lastCall[0].match(/traceId=asdfghjkl (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z) appName=test-function version=test-version/))
+  // log(lastCall)
+  t.ok(lastCall[0].match(/traceId=asdfghjkl traceIndex=0 (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z) appName=test-function version=test-version/))
+  t.end()
+})
+
+test('logger includes traceIndex on logs', t => {
+  makeLogger()
+  var lastCall = logCalls.last()
+  // log(lastCall)
+  t.ok(lastCall[0].match(/traceIndex=0/))
+  t.end()
+})
+
+test('logger increases the traceIndex for eachj log', t => {
+  makeLogger()
+  logModule.log('test')
+  var lastCall = logCalls.last()
+  t.ok(lastCall[0].match(/traceIndex=1/))
   t.end()
 })
 
@@ -154,7 +170,7 @@ test('logger creates access log when handler returns promise', t => {
     })
 })
 
-test.only('logger creates access log when handler is rejected', t => {
+test('logger creates access log when handler is rejected', t => {
   t.plan(1)
   return makeAsyncLogger(null, async () => { throw new Error('test rejection') })
     .catch(r => {
@@ -261,7 +277,7 @@ test('logger prepends default severity of info', t => {
   makeLogger()
   logModule.log('test')
   var lastCall = logCalls.last()
-  t.ok(lastCall[0].match(/traceId=asdfghjkl (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z) appName=test-function version=test-version severity=INFO/))
+  t.ok(lastCall[0].match(/traceId=asdfghjkl traceIndex=1 (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z) appName=test-function version=test-version severity=INFO/))
   t.end()
 })
 
@@ -323,7 +339,7 @@ test('logger should respect default severity set', t => {
   logModule.setKey('severity', 'WARN')
   logModule.log('test')
   var lastCall = logCalls.last()
-  t.ok(lastCall[0].match(/traceId=asdfghjkl (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z) appName=test-function version=test-version severity=WARN/))
+  t.ok(lastCall[0].match(/traceId=asdfghjkl traceIndex=1 (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z) appName=test-function version=test-version severity=WARN/))
   t.end()
 })
 

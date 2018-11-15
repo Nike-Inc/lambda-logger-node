@@ -6,7 +6,7 @@ This logger does two things.
 
 1. Replaces `console.log` with a curried function that prepends any configured key/value pairs (or the default ones) onto the logged message. Both the format and values can be customized. The default format is
 ```
-traceId={{traceId}} {{date}} appname={{appname}} version={{version}} severity={{severity}} | {{originalMessage}}
+traceId={{traceId}} traceIndex={{traceIndex}} {{date}} appname={{appname}} version={{version}} severity={{severity}} | {{originalMessage}}
 ```
 
 2. Replaces the lambda `callback` (as well as `context.[fail|done|succeed] for legacy lambdas`) with a function will log an access log before passing the result onto AWS. It will look something like This
@@ -140,7 +140,7 @@ The logger provides two methods to log with different severity.
 * `console.(warn|info|error|log|debug)`
 * `logger.(debug|info|warn|error)`
 
-These will include a `severity=${loglevel}` entry in the log. 
+These will include a `severity=${loglevel}` entry in the log.
 
 ## Setting Minimum Log Level
 

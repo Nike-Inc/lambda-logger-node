@@ -1,5 +1,7 @@
 'use strict'
 
+var EventEmitter = require('events')
+
 var objectKeys = function(o,k,r){r=[];for(k in o)r.hasOwnProperty.call(o,k)&&r.push(k);return r} // eslint-disable-line
 
 var startTime = Date.now()
@@ -14,7 +16,7 @@ var isSupressingFinalLog = false
 var minimumLogLevel = null
 var logLevelPriority = ['DEBUG', 'INFO', 'WARN', 'ERROR']
 var tokenizer = /{{(.+?)}}/g
-var logFormat = 'traceId={{traceId}} {{date}} appName={{appname}} version={{version}} severity={{severity}} '
+var logFormat = 'traceId={{traceId}} traceIndex={{traceIndex}} {{date}} appName={{appname}} version={{version}} severity={{severity}} '
 var successFormat = logFormat + 'requestURL={{requestURL}} requestMethod={{requestMethod}} elapsedTime={{elapsedTime}} accessToken={{accessToken}} apigTraceId={{apigTraceId}} result={{result}} '
 var logKeys = {}
 
@@ -69,6 +71,9 @@ function logModule (handler) {
     })
 
     isSupressingFinalLog = false
+
+    if (logModule.events) logModule.events.emit('beforeHandler', event, context)
+
     let handlerResult = handler(event, logContext, next)
     // did not return promise
     if (!handlerResult || typeof handlerResult.then !== 'function') return
@@ -99,17 +104,21 @@ logModule.warn = logRouter('WARN')
 logModule.error = logRouter('ERROR')
 logModule.setMinimumLogLevel = setMinimumLogLevel
 logModule.supressCurrentFinalLog = supressFinalLog
+logModule.events = new EventEmitter()
 
 function setKey (keyName, value) {
   logKeys[keyName] = value
 }
 
 function setMdcKeys (event, context) {
+  let traceIndex = 0
+
   setKey('traceId', context.awsRequestId)
   setKey('date', function () { return formatRfc3339(new Date(Date.now())) })
   setKey('appname', context.functionName)
   setKey('version', context.functionVersion)
   setKey('apigTraceId', (event && event.requestContext && event.requestContext.requestId) || (context && context.requestContext && context.requestContext.requestId))
+  setKey('traceIndex', () => traceIndex++)
 }
 
 function buildAccessLogPrefix (severity) {
@@ -118,7 +127,7 @@ function buildAccessLogPrefix (severity) {
 }
 
 function getToken (match, key) {
-  var token = logKeys[key] || '((TOKEN MISSING: ' + key + '))'
+  var token = logKeys[key] !== undefined ? logKeys[key] : '((TOKEN MISSING: ' + key + '))'
   return typeof token === 'function' ? token() : token
 }
 
@@ -186,7 +195,7 @@ function finalLog (event, context, err, result) {
   try {
     logResult = JSON.stringify(err || result)
   } catch (e) {
-    logResult = `Unable to stringify resul: ${e.toString()}`
+    logResult = `Unable to stringify result: ${e.toString()}`
   }
   setKey('result', logResult)
   // Log and restore console
