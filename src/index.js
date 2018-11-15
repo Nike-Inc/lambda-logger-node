@@ -1,5 +1,7 @@
 'use strict'
 
+var EventEmitter = require('events')
+
 var objectKeys = function(o,k,r){r=[];for(k in o)r.hasOwnProperty.call(o,k)&&r.push(k);return r} // eslint-disable-line
 
 var startTime = Date.now()
@@ -69,6 +71,9 @@ function logModule (handler) {
     })
 
     isSupressingFinalLog = false
+
+    if (logModule.events) logModule.events.emit('beforeHandler', event, context)
+
     let handlerResult = handler(event, logContext, next)
     // did not return promise
     if (!handlerResult || typeof handlerResult.then !== 'function') return
@@ -99,6 +104,7 @@ logModule.warn = logRouter('WARN')
 logModule.error = logRouter('ERROR')
 logModule.setMinimumLogLevel = setMinimumLogLevel
 logModule.supressCurrentFinalLog = supressFinalLog
+logModule.events = new EventEmitter()
 
 function setKey (keyName, value) {
   logKeys[keyName] = value
