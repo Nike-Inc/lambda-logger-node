@@ -145,3 +145,7 @@ These will include a `severity=${loglevel}` entry in the log.
 ## Setting Minimum Log Level
 
 Use `logger.setMinimumLogLevel('debug|info|warn|error')` to ignore log levels below the selected one. For example, calling `logger.setMinimumLogLevel('info')` will cause calls to `logger.debug()` to be ignored. This allows the same code to be deployed to development and production, while keeping the production logs quieter.
+
+# Events
+
+The logger also contains an event emitter that will emit a `beforeHandler` event just before the lambda handler function is called. This receives both the lambda event and context as arguments.
