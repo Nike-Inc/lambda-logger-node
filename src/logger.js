@@ -22,8 +22,31 @@ module.exports = {
   Logger
 }
 
+/** Description of the function
+    @name RedactorFunction
+    @function
+    @param {String} log message to redact
+*/
+
+/**
+ * Construct a new logger. Does not require "new".
+ *
+ * @param {Object} [{
+ *   useFinalLog = true,
+ *   minimumLogLevel = null,
+ *   formatter = JsonFormatter,
+ *   useBearerRedactor = true,
+ *   useGlobalErrorHandler = true,
+ *   redactors = []
+ * }={}] options
+ * @param {Boolean} [null] options.minimumLogLevel hide log entries of lower severity
+ * @param {Formatter} [JsonFormatter] options.formatter thunk that receives the log context, must return a function to handler formatting log messages. Defaults to JsonFormatter
+ * @param {Boolean} [true] options.useBearerRedactor add a Bearer token redactor
+ * @param {Boolean} [true] options.useGlobalErrorHandler setup global handlers for uncaughtException and unhandledRejection. Only one logger per-lambda can use this option.
+ * @param {(string|RegExp|RedactorFunction)[]} [[]] options.redactors array of redactors. A Redactor is a string or regex to globally replace, or a user=supplied function that is invoked during the redaction phase.
+ * @returns {Logger}
+ */
 function Logger ({
-  useFinalLog = true,
   minimumLogLevel = null,
   formatter = JsonFormatter,
   useBearerRedactor = true,
@@ -31,19 +54,10 @@ function Logger ({
   redactors = []
 } = {}) {
   const context = {
-    useFinalLog,
     minimumLogLevel,
+    contextPath: [],
     keys: new Map()
   }
-  // Logging functions
-  let log = wrapLog(context)
-  context.info = log('INFO')
-  context.warn = log('WARN')
-  context.error = log('ERROR')
-  context.debug = log('DEBUG')
-  context.setKey = setKey(context)
-  context.getFormattedLogMessage = formatter(context)
-  // Redaction
   if (useBearerRedactor) {
     redactors.push(bearerRedactor())
   }
@@ -51,16 +65,16 @@ function Logger ({
     registerErrorHandlers(context)
   }
   context.redact = wrapRedact(context, redactors)
+  context.getFormattedLogMessage = formatter(context)
 
-  return {
+  context.logger = {
     handler: wrapHandler(context),
-    setMinimumLogLevel: setMinimumLogLevel(context),
-    setKey: context.setKey,
-    info: context.info,
-    warn: context.warn,
-    error: context.error,
-    debug: context.debug
+    setMinimumLogLevel: wrapSetMinimumLogLevel(context),
+    setKey: wrapSetKey(context),
+    ...createLogger(context)
   }
+
+  return context.logger
 }
 
 function wrapHandler (logContext) {
@@ -68,7 +82,8 @@ function wrapHandler (logContext) {
     // Create initial values from context
     setMdcKeys(logContext, lambdaEvent, lambdaContext)
 
-    //
+    // Attach logger to context
+    lambdaContext.logger = logContext.logger
 
     if (logContext.events) logContext.events.emit('beforeHandler', lambdaEvent, lambdaContext)
 
@@ -77,19 +92,12 @@ function wrapHandler (logContext) {
       // log the error first
       throw new Error('Logger wrapped a handler function that did not return a promise. Lambda logger only supports async handlers.')
     }
-    try {
-      let handlerResult = await result
-      finalLog(logContext, lambdaEvent, lambdaContext, null, handlerResult)
-      return handlerResult
-    } catch (e) {
-      finalLog(logContext, lambdaEvent, lambdaContext, e)
-      throw e
-    }
+    return result
   }
 }
 
 const reservedKeys = ['message', 'severity']
-function setKey (logContext) {
+function wrapSetKey (logContext) {
   return (key, value) => {
     if (reservedKeys.includes(key)) {
       throw new Error(`"${key}" is a reserved logger key.`)
@@ -101,35 +109,24 @@ function setKey (logContext) {
 function setMdcKeys (logContext, lambdaEvent, lambdaContext) {
   let traceIndex = 0
 
-  logContext.setKey('traceId', lambdaContext.awsRequestId)
-  logContext.setKey('date', getFormattedDate)
-  logContext.setKey('appname', lambdaContext.functionName)
-  logContext.setKey('version', lambdaContext.functionVersion)
-  logContext.setKey('apigTraceId', (lambdaEvent && lambdaEvent.requestContext && lambdaEvent.requestContext.requestId) || (lambdaContext && lambdaContext.requestContext && lambdaContext.requestContext.requestId))
-  logContext.setKey('traceIndex', () => traceIndex++)
-}
-
-function setMinimumLogLevel (logContext) {
-  return level => {
-    if (logLevels.indexOf(level) === -1) {
-      throw new Error('Illegal log level value: ' + level)
-    }
-    logContext.minimumLogLevel = level
-  }
+  logContext.logger.setKey('traceId', lambdaContext.awsRequestId)
+  logContext.logger.setKey('date', getFormattedDate)
+  logContext.logger.setKey('appname', lambdaContext.functionName)
+  logContext.logger.setKey('version', lambdaContext.functionVersion)
+  logContext.logger.setKey('apigTraceId', (lambdaEvent && lambdaEvent.requestContext && lambdaEvent.requestContext.requestId) || (lambdaContext && lambdaContext.requestContext && lambdaContext.requestContext.requestId))
+  logContext.logger.setKey('traceIndex', () => traceIndex++)
 }
 
 function wrapLog (logContext) {
-  return severity => (...args) => createLog(logContext, severity, ...args)
+  return severity => (...args) => writeLog(logContext, severity, ...args)
 }
 
-function createLog (logContext, severity, ...args) {
+function writeLog (logContext, severity, ...args) {
   if (!canLogSeverity(logContext, severity)) return
-  let logMessage = logContext.redact(logContext.getFormattedLogMessage(severity, ...args))
+  let logMessage = getLogMessage(logContext, severity, ...args)
 
   switch (severity) {
     case 'WARN':
-      console.warn(logMessage)
-      return
     case 'ERROR':
       console.error(logMessage)
       return
@@ -141,13 +138,45 @@ function createLog (logContext, severity, ...args) {
   }
 }
 
-function finalLog (logContext, lambdaEvent, lambdaContext, error, result) {
+function getLogMessage (logContext, severity, ...args) {
+  return logContext.redact(logContext.getFormattedLogMessage(severity, ...args))
+}
 
+function createLogger (logContext) {
+  let severityLog = wrapLog(logContext)
+  return {
+    createSubLogger: wrapSubLogger(logContext),
+    info: severityLog('INFO'),
+    warn: severityLog('WARN'),
+    error: severityLog('ERROR'),
+    debug: severityLog('DEBUG')
+  }
+}
+
+function wrapSubLogger (logContext) {
+  return (subLoggerName) => createLogger({
+    ...logContext,
+    // Reference parent's minimumLogLevel so that it cascades down
+    get minimumLogLevel () {
+      return logContext.minimumLogLevel
+    },
+    contextPath: [...logContext.contextPath, subLoggerName],
+    logger: undefined
+  })
 }
 
 function canLogSeverity (logContext, severity) {
   if (logLevels.indexOf(severity) === -1) throw new Error('Unable to log, illegal severity: ' + severity)
   return !(logContext.minimumLogLevel && severity && logLevels.indexOf(severity) < logLevels.indexOf(logContext.minimumLogLevel))
+}
+
+function wrapSetMinimumLogLevel (logContext) {
+  return level => {
+    if (logLevels.indexOf(level) === -1) {
+      throw new Error('Illegal log level value: ' + level)
+    }
+    logContext.minimumLogLevel = level
+  }
 }
 
 function JsonFormatter (logContext) {
@@ -160,7 +189,8 @@ function JsonFormatter (logContext) {
     log.severity = severity
     // put the un-annotated message first to make cloudwatch viewing easier
     // include the MDC annotaed message after with log delimiter to enable parsing
-    return `${severity} ${util.format(log.message)} | ${withDelimiter(JSON.stringify(log, null, 2))}`
+    let subLogPath = logContext.contextPath.join('.')
+    return `${severity}${subLogPath || ' '}${util.format(log.message)} | ${withDelimiter(JSON.stringify(log, null, 2))}`
   }
 }
 
@@ -191,9 +221,9 @@ function registerErrorHandlers (logContext) {
   clearLambdaExceptionHandlers()
   logContext.globalErrorHandler = (err, promise) => {
     if (promise) {
-      logContext.error('unhandled rejection (this should never happen!)', err.stack)
+      logContext.logger.error('unhandled rejection (this should never happen!)', err.stack)
     } else {
-      logContext.error('uncaught exception (this should never happen!)', err.stack)
+      logContext.logger.error('uncaught exception (this should never happen!)', err.stack)
     }
     process.exit(1)
   }
