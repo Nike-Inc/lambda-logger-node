@@ -22,12 +22,6 @@ module.exports = {
   Logger
 }
 
-/** Description of the function
-    @name RedactorFunction
-    @function
-    @param {String} log message to redact
-*/
-
 /**
  * Construct a new logger. Does not require "new".
  *
@@ -187,9 +181,9 @@ function JsonFormatter (logContext) {
     })
     log.message = args.length === 1 ? args[0] : args
     log.severity = severity
+    let subLogPath = logContext.contextPath.join('.')
     // put the un-annotated message first to make cloudwatch viewing easier
     // include the MDC annotaed message after with log delimiter to enable parsing
-    let subLogPath = logContext.contextPath.join('.')
     return `${severity}${subLogPath || ' '}${util.format(log.message)} | ${withDelimiter(JSON.stringify(log, null, 2))}`
   }
 }
