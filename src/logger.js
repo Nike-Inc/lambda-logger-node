@@ -32,7 +32,6 @@ function Logger ({
 } = {}) {
   const context = {
     useFinalLog,
-    useGlobalErrorHandler,
     minimumLogLevel,
     keys: new Map()
   }
@@ -47,6 +46,9 @@ function Logger ({
   // Redaction
   if (useBearerRedactor) {
     redactors.push(bearerRedactor())
+  }
+  if (useGlobalErrorHandler) {
+    registerErrorHandlers(context)
   }
   context.redact = wrapRedact(context, redactors)
 
@@ -63,7 +65,6 @@ function Logger ({
 
 function wrapHandler (logContext) {
   return handler => async (lambdaEvent, lambdaContext) => {
-    registerErrorHandlers(logContext)
     // Create initial values from context
     setMdcKeys(logContext, lambdaEvent, lambdaContext)
 
@@ -83,8 +84,6 @@ function wrapHandler (logContext) {
     } catch (e) {
       finalLog(logContext, lambdaEvent, lambdaContext, e)
       throw e
-    } finally {
-      cleanupErrorHandlers(logContext)
     }
   }
 }
@@ -189,7 +188,7 @@ function bearerRedactor () {
 }
 
 function registerErrorHandlers (logContext) {
-  if (!logContext.useGlobalErrorHandler) return
+  clearLambdaExceptionHandlers()
   logContext.globalErrorHandler = (err, promise) => {
     if (promise) {
       logContext.error('unhandled rejection (this should never happen!)', err.stack)
@@ -202,20 +201,21 @@ function registerErrorHandlers (logContext) {
   process.on('unhandledRejection', logContext.globalErrorHandler)
 }
 
-function cleanupErrorHandlers (logContext) {
-  if (!logContext.useGlobalErrorHandler) return
-  process.removeListener('uncaughtException', logContext.globalErrorHandler)
-  process.removeListener('unhandledRejection', logContext.globalErrorHandler)
-}
-
+let hasAlreadyClearedLambdaHandlers = false
 function clearLambdaExceptionHandlers () {
+  if (hasAlreadyClearedLambdaHandlers) {
+    console.error
+    throw new Error('tried to setup global handlers twice. You cannot contrusct two Loggers with "useGlobalErrorHandler"')
+  }
   const assert = require('assert')
+  // Taken from: https://gist.github.com/twolfson/855a823cfbd62d4c7405a38105c23fd3
   // DEV: AWS Lambda's `uncaughtException` handler logs `err.stack` and exits forcefully
-//   uncaughtException listeners = [function (err) { console.error(err.stack); process.exit(1); }]
-//   We remove it so we can catch async errors and report them to Rollbar
+  //   uncaughtException listeners = [function (err) { console.error(err.stack); process.exit(1); }]
+  //   We remove it so we can catch async errors and report them to Rollbar
   assert.strictEqual(process.listeners('uncaughtException').length, 1)
   assert.strictEqual(process.listeners('unhandledRejection').length, 0)
   process.removeAllListeners('uncaughtException')
+  hasAlreadyClearedLambdaHandlers = true
 }
 
 // Utilities
