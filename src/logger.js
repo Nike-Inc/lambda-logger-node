@@ -153,7 +153,6 @@ function writeLog (logContext, severity, ...args) {
     case 'INFO':
     default:
       console.log(logMessage)
-      return
   }
 }
 
@@ -189,8 +188,8 @@ function JsonFormatter (logContext, severity, ...args) {
   log.severity = severity
   let subLogPath = logContext.contextPath.join('.')
   log.contextPath = subLogPath
-    // put the un-annotated message first to make cloudwatch viewing easier
-    // include the MDC annotaed message after with log delimiter to enable parsing
+  // put the un-annotated message first to make cloudwatch viewing easier
+  // include the MDC annotaed message after with log delimiter to enable parsing
   return `${severity}${subLogPath ? ` ${subLogPath} ` : ' '}${log.message} |\n ${withDelimiter(jsonify(log))}`
 }
 
