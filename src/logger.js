@@ -10,7 +10,8 @@ Properties of an ideal logger
   allows custom formatting of objects
 */
 
-const util = require('util')
+const { EventEmitter } = require('events')
+const jsonify = require('fast-safe-stringify')
 const { stringRedactor, regexRedactor } = require('./strings')
 
 const logLevels = ['DEBUG', 'INFO', 'WARN', 'ERROR']
@@ -26,7 +27,6 @@ module.exports = {
  * Construct a new logger. Does not require "new".
  *
  * @param {Object} [{
- *   useFinalLog = true,
  *   minimumLogLevel = null,
  *   formatter = JsonFormatter,
  *   useBearerRedactor = true,
@@ -49,6 +49,8 @@ function Logger ({
 } = {}) {
   const context = {
     minimumLogLevel,
+    formatter,
+    events: new EventEmitter(),
     contextPath: [],
     keys: new Map()
   }
@@ -59,16 +61,39 @@ function Logger ({
     registerErrorHandlers(context)
   }
   context.redact = wrapRedact(context, redactors)
-  context.getFormattedLogMessage = formatter(context)
 
   context.logger = {
     handler: wrapHandler(context),
     setMinimumLogLevel: wrapSetMinimumLogLevel(context),
+    events: context.events,
     setKey: wrapSetKey(context),
     ...createLogger(context)
   }
 
   return context.logger
+}
+
+function createLogger (logContext) {
+  let severityLog = wrapLog(logContext)
+  return {
+    createSubLogger: wrapSubLogger(logContext),
+    info: severityLog('INFO'),
+    warn: severityLog('WARN'),
+    error: severityLog('ERROR'),
+    debug: severityLog('DEBUG')
+  }
+}
+
+function wrapSubLogger (logContext) {
+  return (subLoggerName) => createLogger({
+    ...logContext,
+    // Reference parent's minimumLogLevel so that it cascades down
+    get minimumLogLevel () {
+      return logContext.minimumLogLevel
+    },
+    contextPath: [...logContext.contextPath, subLoggerName],
+    logger: undefined
+  })
 }
 
 function wrapHandler (logContext) {
@@ -133,30 +158,7 @@ function writeLog (logContext, severity, ...args) {
 }
 
 function getLogMessage (logContext, severity, ...args) {
-  return logContext.redact(logContext.getFormattedLogMessage(severity, ...args))
-}
-
-function createLogger (logContext) {
-  let severityLog = wrapLog(logContext)
-  return {
-    createSubLogger: wrapSubLogger(logContext),
-    info: severityLog('INFO'),
-    warn: severityLog('WARN'),
-    error: severityLog('ERROR'),
-    debug: severityLog('DEBUG')
-  }
-}
-
-function wrapSubLogger (logContext) {
-  return (subLoggerName) => createLogger({
-    ...logContext,
-    // Reference parent's minimumLogLevel so that it cascades down
-    get minimumLogLevel () {
-      return logContext.minimumLogLevel
-    },
-    contextPath: [...logContext.contextPath, subLoggerName],
-    logger: undefined
-  })
+  return logContext.redact(logContext.formatter(logContext, severity, ...args))
 }
 
 function canLogSeverity (logContext, severity) {
@@ -173,19 +175,23 @@ function wrapSetMinimumLogLevel (logContext) {
   }
 }
 
-function JsonFormatter (logContext) {
-  return (severity, ...args) => {
-    let log = {}
-    logContext.keys.forEach((key, value) => {
-      log[key] = typeof value === 'function' ? value() : value
-    })
-    log.message = args.length === 1 ? args[0] : args
-    log.severity = severity
-    let subLogPath = logContext.contextPath.join('.')
+function formatMessageItem (message) {
+  if (typeof message === 'string') return message
+  return jsonify(message, null, 2)
+}
+
+function JsonFormatter (logContext, severity, ...args) {
+  let log = {}
+  logContext.keys.forEach((value, key) => {
+    log[key] = typeof value === 'function' ? value() : value
+  })
+  log.message = args.length === 1 ? formatMessageItem(args[0]) : args.map(formatMessageItem).join(' ')
+  log.severity = severity
+  let subLogPath = logContext.contextPath.join('.')
+  log.contextPath = subLogPath
     // put the un-annotated message first to make cloudwatch viewing easier
     // include the MDC annotaed message after with log delimiter to enable parsing
-    return `${severity}${subLogPath || ' '}${util.format(log.message)} | ${withDelimiter(JSON.stringify(log, null, 2))}`
-  }
+  return `${severity}${subLogPath ? ` ${subLogPath} ` : ' '}${log.message} |\n ${withDelimiter(jsonify(log))}`
 }
 
 function withDelimiter (message) {
@@ -211,6 +217,9 @@ function bearerRedactor () {
   return /Bearer ey\w+/
 }
 
+// Error Handling
+//
+
 function registerErrorHandlers (logContext) {
   clearLambdaExceptionHandlers()
   logContext.globalErrorHandler = (err, promise) => {
@@ -228,7 +237,6 @@ function registerErrorHandlers (logContext) {
 let hasAlreadyClearedLambdaHandlers = false
 function clearLambdaExceptionHandlers () {
   if (hasAlreadyClearedLambdaHandlers) {
-    console.error
     throw new Error('tried to setup global handlers twice. You cannot contrusct two Loggers with "useGlobalErrorHandler"')
   }
   const assert = require('assert')
@@ -260,5 +268,5 @@ function formatRfc3339 (d) {
 }
 
 function isPromise (promise) {
-  return promise.then !== undefined && typeof promise.then === 'function'
+  return promise && promise.then !== undefined && typeof promise.then === 'function'
 }

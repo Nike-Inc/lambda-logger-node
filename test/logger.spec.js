@@ -1,386 +1,241 @@
 'use strict'
 
-var test = require('blue-tape')
-var logModule = require('../src/index')
+const test = require('blue-tape')
+const sinon = require('sinon')
+const { stub } = sinon
+const { EventEmitter } = require('events')
+// const { spawn } = require('child_process')
 
-// TAP uses logs for test results
-// Since logger hijacks the console.log, we need to restore it, or TAP breaks
-// We can hijack logger's log though, and capture it's calls
-var originalLog = console.log.bind(console)
-var originalWarn = console.warn.bind(console)
-var originalInfo = console.info.bind(console)
-var originalError = console.error.bind(console)
-var originalTrace = console.debug
-var loggerLog
-var loggerWarn
-var loggerError
-var loggerInfo
-var logCalls = []
-logCalls.last = () => logCalls.length ? logCalls[logCalls.length - 1] : null
-
-var log = (...args) => console.log(...args.map(a => require('util').inspect(a, { colors: true, depth: null }))) // eslint-disable-line
-
-var prepareConsole = () => {
-  console.log = console.warn = console.error = console.info = function () { logCalls.push(Array.prototype.slice.call(arguments)) }
+const { replaceAll } = require('../src/strings')
+// The AWS lambda infrastructure does not use process.stdout or process.stderr
+// but we can take advantage of the native node runtime using both for Console
+const rewire = require('rewire')
+const logModule = rewire('../src/logger')
+const fakeConsole = { log: () => {}, error: () => {} }
+const fakeProcess = new EventEmitter()
+fakeProcess.exit = () => {}
+fakeProcess.stdout = {
+  write: console.log.bind(console)
 }
-var testLogWrapper = () => {
-  loggerLog = console.log
-  loggerWarn = console.warn
-  loggerError = console.error
-  loggerInfo = console.info
-}
+logModule.__set__({
+  console: fakeConsole,
+  process: fakeProcess
+})
+const { Logger, LOG_DELIMITER } = logModule
 
-const defaultEvent = {
-  path: '/some/route',
-  httpMethod: 'GET',
-  headerParams: { Authorization: 'Bearer 12' },
-  requestContext: {
-    requestId: '4ad0d369-08e2-11e7-9df7-6d968da958aa'
-  }
-}
-const defaultContext = {
-  awsRequestId: 'asdfghjkl',
-  functionName: 'test-function',
-  functionVersion: 'test-version',
-  // You will need to override these for any tests that use them
-  succeed: () => {},
-  fail: () => {},
-  done: () => {}
-}
-
-const makeLoggerContextTest = (testSetup, event, context, callback) => {
-  testSetup()
-  var l = logModule((e, c, cb) => { testLogWrapper(); cb(null, 'done') })
-  l(Object.assign({}, defaultEvent, event), Object.assign({}, defaultContext, context), (err, result) => {
-    console.log = originalLog
-    console.error = originalError
-    console.debug = originalTrace
-    console.info = originalInfo
-    console.warn = originalWarn
-    if (callback) callback(err, result)
-  })
-}
-
-const makeLogger = (options, callback) => {
-  options = options || {}
-  prepareConsole()
-  logCalls.length = 0
-  var l = logModule((e, c, cb) => { testLogWrapper(); if (options.callHook) options.callHook(); cb(options.error, options.result || 'done') })
-  l(Object.assign({}, options.event || defaultEvent), Object.assign({}, options.context || defaultContext), (err, result) => {
-    console.log = originalLog
-    console.error = originalError
-    console.info = originalInfo
-    console.debug = originalTrace
-    console.warn = originalWarn
-    if (callback) callback(err, result)
-  })
-}
-
-const makeAsyncLogger = (options, handler = async () => {}) => {
-  options = options || {}
-  prepareConsole()
-  logCalls.length = 0
-  let l = logModule(async (e, c) => {
-    testLogWrapper()
-    return handler(e, c)
-  })
-  let cleanup = () => {
-    console.log = originalLog
-    console.error = originalError
-    console.info = originalInfo
-    console.debug = originalTrace
-    console.warn = originalWarn
-  }
-  return l(Object.assign({}, options.event || defaultEvent), Object.assign({}, options.context || defaultContext))
-    .then(r => {
-      cleanup()
-      return r
-    })
-    .catch(err => {
-      cleanup()
-      throw err
-    })
-}
-
-test('logger should return a function', t => {
-  t.ok(typeof logModule === 'function', 'logger is function')
+test('Logger returns logger', t => {
+  let logger = Logger({ useGlobalErrorHandler: false })
+  t.ok('info' in logger, 'has info')
+  t.ok('error' in logger, 'has error')
+  t.ok('warn' in logger, 'has warn')
+  t.ok('debug' in logger, 'has debug')
+  t.ok('handler' in logger, 'has handler')
+  t.ok('setKey' in logger, 'has setKey')
+  t.ok('setMinimumLogLevel' in logger, 'has setMinimumLogLevel')
   t.end()
 })
 
-test('logger replace console.log', t => {
-  makeLogger()
-  t.notEqual(originalLog, loggerLog, 'console.log replaced')
-  t.end()
-})
+test('logger writes info to console', logTest(async (t, { logs, errors }) => {
+  t.plan(3)
+  let logger = Logger({ useGlobalErrorHandler: false })
+  logger.info('test')
+  logger.debug('bug')
+  let logCall = logs.firstCall.args[0]
+  t.ok(logCall.startsWith('INFO test'), 'got test message')
+  t.ok(logCall.includes(LOG_DELIMITER), ' has delimiter')
+  t.ok(logs.secondCall.args[0].startsWith('DEBUG bug'), 'got test message')
+}))
 
-test('logger replace other console contexts', t => {
-  makeLogger()
-  t.notEqual(originalError, loggerError, 'console.error replaced')
-  t.notEqual(originalInfo, loggerInfo, 'console.info replaced')
-  t.notEqual(originalWarn, loggerWarn, 'console.warn replaced')
-  t.end()
-})
-
-test('logger prepends trace values on logs', t => {
-  makeLogger()
-  // loggerLog('test')
-  var lastCall = logCalls.last()
-  // log(lastCall)
-  t.ok(lastCall[0].match(/traceId=asdfghjkl traceIndex=0 (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z) appName=test-function version=test-version/))
-  t.end()
-})
-
-test('logger includes traceIndex on logs', t => {
-  makeLogger()
-  var lastCall = logCalls.last()
-  // log(lastCall)
-  t.ok(lastCall[0].match(/traceIndex=0/))
-  t.end()
-})
-
-test('logger increases the traceIndex for eachj log', t => {
-  makeLogger()
-  logModule.log('test')
-  var lastCall = logCalls.last()
-  t.ok(lastCall[0].match(/traceIndex=1/))
-  t.end()
-})
-
-test('logger creates access log when callback is called', t => {
+test('logger stringifies objects', logTest(async (t, { logs, errors }) => {
   t.plan(1)
-  makeLogger(null, (err, result) => {
-    if (err) t.end(err)
-    var lastCall = logCalls.last()
-    var accessLog = lastCall[0]
-    // originalLog(`debug: ${logCalls.length}\n`, logCalls.join('\n\n'))
-    // originalLog('access log', accessLog)
-    t.ok(accessLog.match(/requestURL=\/some\/route requestMethod=GET elapsedTime=-?\d+ accessToken=Bearer 12 apigTraceId=4ad0d369-08e2-11e7-9df7-6d968da958aa/))
-  })
-})
+  let logger = Logger({ useGlobalErrorHandler: false })
+  let message = { name: 'tim', sub: { age: 30, sub2: { thing: 'stuff' } } }
+  message.circ = message
+  logger.info(message)
+  let logCall = logs.firstCall.args[0]
+  let logMessage = logCall.substring(logCall.indexOf('INFO ') + 5, logCall.indexOf('|'))
+  logMessage = JSON.parse(logMessage)
+  t.same(logMessage, {...message, circ: '[Circular]'}, 'got object with circular removed')
+}))
 
-test('logger creates access log when handler returns promise', t => {
-  t.plan(1)
-  return makeAsyncLogger(null, async () => {})
-    .then(r => {
-      var lastCall = logCalls.last()
-      var accessLog = lastCall[0]
-      // originalLog(`debug: ${logCalls.length}\n`, logCalls.join('\n\n'))
-      // originalLog('access log', accessLog)
-      t.ok(accessLog.match(/requestURL=\/some\/route requestMethod=GET elapsedTime=-?\d+ accessToken=Bearer 12 apigTraceId=4ad0d369-08e2-11e7-9df7-6d968da958aa/), 'access log created')
-    })
-})
+test('logger includes detailed message', logTest(async (t, { logs, errors }) => {
+  t.plan(3)
+  let logger = Logger({ useGlobalErrorHandler: false })
+  logger.setKey('detail', 'value')
+  logger.info('message')
+  let logCall = logs.firstCall.args[0]
+  let logMessage = replaceAll(logCall.substring(logCall.indexOf('|') + 1), logModule.LOG_DELIMITER, '')
+  logMessage = JSON.parse(logMessage)
+  t.equal(logMessage.message, 'message', 'got message')
+  t.equal(logMessage.detail, 'value', 'got detail')
+  t.equal(logMessage.severity, 'INFO', 'got severity')
+}))
 
-test('logger creates access log when handler is rejected', t => {
-  t.plan(1)
-  return makeAsyncLogger(null, async () => { throw new Error('test rejection') })
-    .catch(r => {
-      var lastCall = logCalls.last()
-      var accessLog = lastCall[0]
-      // originalLog(`debug: ${logCalls.length}\n`, logCalls.join('\n\n'))
-      // originalLog('access log', accessLog)
-      t.ok(accessLog.match(/requestURL=\/some\/route requestMethod=GET elapsedTime=-?\d+ accessToken=Bearer 12 apigTraceId=4ad0d369-08e2-11e7-9df7-6d968da958aa/), 'access log created')
-    })
-})
+test('logger sets standard mdc keys for handler', logTest(async (t, { logs, errors }) => {
+  let logger = Logger({ useGlobalErrorHandler: false })
 
-test('logger creates allows custom successFormat log', t => {
-  t.plan(1)
-  var original = logModule.successFormat
-  logModule.successFormat = logModule.successFormat.replace('accessToken={{accessToken}}', 'accessToken={{customAccessToken}}')
-  logModule.setKey('customAccessToken', 'Bearer custom')
-  makeLogger(null, (err, result) => {
-    logModule.successFormat = original
-    if (err) t.end(err)
-    var lastCall = logCalls.last()
-    var accessLog = lastCall[0]
-    // originalLog(`debug: ${logCalls.length}\n`, logCalls.join('\n\n'))
-    // originalLog('access log', accessLog)
-    t.ok(accessLog.match(/requestURL=\/some\/route requestMethod=GET elapsedTime=-?\d+ accessToken=Bearer custom apigTraceId=4ad0d369-08e2-11e7-9df7-6d968da958aa/))
-  })
-})
+  await logger.handler(async (event, context) => {
+    logger.setKey('detail', 'value')
+    logger.info('handler message')
+  })({}, {functionName: 'test-run', awsRequestId: 'trace', requestContext: { requestId: 'requestId' }})
 
-test('logger skips access log when logModule.successFormat is falsy', t => {
-  t.plan(1)
-  var originalSuccess = logModule.successFormat
-  logModule.successFormat = ''
-  makeLogger(null, (err, result) => {
-    logModule.successFormat = originalSuccess
-    if (err) t.end(err)
-    var lastCall = logCalls.last()
-    // var accessLog = lastCall[0]
-    // originalLog(`debug: ${logCalls.length}\n`, logCalls.join('\n\n'))
-    // originalLog('access log', lastCall)
-    t.ok(lastCall === null, 'access log was not made')
-    // t.ok(accessLog.match(/requestURL=\/some\/route requestMethod=GET elapsedTime=-?\d+ accessToken=Bearer 12 restApiId=request-id apigTraceId=4ad0d369-08e2-11e7-9df7-6d968da958aa/))
-  })
-})
+  let logCall = logs.firstCall.args[0]
+  let logMessage = replaceAll(logCall.substring(logCall.indexOf('|') + 1), logModule.LOG_DELIMITER, '')
+  logMessage = JSON.parse(logMessage)
+  t.equal(logMessage.message, 'handler message', 'got message')
+  t.equal(logMessage.severity, 'INFO', 'got severity')
+  t.equal(logMessage.appname, 'test-run', 'got appname')
+  t.equal(logMessage.apigTraceId, 'requestId', 'got requestId')
+  t.equal(logMessage.traceId, 'trace', 'got trace')
+  t.equal(logMessage.traceIndex, 0, 'got trace index')
+  t.ok('date' in logMessage, 'got date')
+}))
 
-test('logger skips access log when logModule.errorFormat is falsy', t => {
-  t.plan(2)
-  var originalError = logModule.errorFormat
-  logModule.errorFormat = ''
-  makeLogger({ error: 'err' }, (err, result) => {
-    logModule.errorFormat = originalError
-    var lastCall = logCalls.last()
-    // var accessLog = lastCall[0]
-    // originalLog(`debug: ${logCalls.length}\n`, logCalls.join('\n\n'))
-    // originalLog('access log', lastCall, err)
-    t.ok(err, 'error returned')
-    t.ok(lastCall === null, 'access log was not made')
-    // t.ok(accessLog.match(/requestURL=\/some\/route requestMethod=GET elapsedTime=-?\d+ accessToken=Bearer 12 restApiId=request-id apigTraceId=4ad0d369-08e2-11e7-9df7-6d968da958aa/))
-  })
-})
+test('logger suppress messages below minimum severity', logTest(async (t, { logs, errors }) => {
+  let logger = Logger({ useGlobalErrorHandler: false })
+  logger.setMinimumLogLevel('INFO')
+  logger.debug('skip')
+  logger.info('include')
+  let logCall = logs.firstCall.args[0]
+  t.ok(logCall.startsWith('INFO include'), 'got test message')
+  t.ok(logCall.includes(LOG_DELIMITER), ' has delimiter')
+  t.equal(logs.callCount, 1, 'got called once')
+}))
 
-test('logger skips access log when logModule.supressCurrentFinalLog', t => {
+test('logger suppress messages below minimum severity for errors', logTest(async (t, { logs, errors }) => {
+  let logger = Logger({ useGlobalErrorHandler: false })
+  logger.setMinimumLogLevel('WARN')
+  logger.info('skip')
+  logger.warn('include')
+  t.ok(errors.firstCall.args[0].startsWith('WARN include'), 'got test message')
+  t.ok(errors.firstCall.args[0].includes(LOG_DELIMITER), ' has delimiter')
+  t.equal(errors.callCount, 1, 'got warn')
+  t.equal(logs.callCount, 0, 'no logs')
+}))
+
+test('sub-logger writes info to console', logTest(async (t, { logs, errors }) => {
   t.plan(4)
-  makeLogger({ callHook: () => logModule.supressCurrentFinalLog() }, (err, result) => {
-    var lastCall = logCalls.last()
-    // originalLog('access log', lastCall, err)
-    t.ok(lastCall === null, 'access log was not made')
-    t.notOk(err, 'err is empty')
+  let logger = Logger({ useGlobalErrorHandler: false })
+  logger.setKey('detail', 'value')
+  let sub = logger.createSubLogger('db')
+  sub.info('sub message')
+  let logCall = logs.firstCall.args[0]
+  t.ok(logCall.startsWith('INFO db sub message'), 'got context prefix')
+  let logMessage = replaceAll(logCall.substring(logCall.indexOf('|') + 1), logModule.LOG_DELIMITER, '')
+  logMessage = JSON.parse(logMessage)
+  t.equal(logMessage.message, 'sub message', 'got message')
+  t.equal(logMessage.detail, 'value', 'got detail')
+  t.equal(logMessage.severity, 'INFO', 'got severity')
+}))
 
-    makeLogger(null, (err, result) => {
-      var lastCall = logCalls.last()
-      // originalLog('access log', lastCall, err)
-      t.notOk(err, 'err is empty')
-      t.ok(lastCall[0].match(/result=/), 'access log was made')
-    })
+test('sub-logger respects parent minimum log level', logTest(async (t, { logs, errors }) => {
+  t.plan(5)
+  let logger = Logger({ useGlobalErrorHandler: false })
+  logger.setMinimumLogLevel('WARN')
+  logger.setKey('detail', 'value')
+  let sub = logger.createSubLogger('db')
+  sub.info('skip')
+  sub.warn('sub message')
+  t.equal(logs.callCount, 0, 'log skipper')
+  let logCall = errors.firstCall.args[0]
+  t.ok(logCall.startsWith('WARN db sub message'), 'got context prefix')
+  let logMessage = replaceAll(logCall.substring(logCall.indexOf('|') + 1), logModule.LOG_DELIMITER, '')
+  logMessage = JSON.parse(logMessage)
+  t.equal(logMessage.message, 'sub message', 'got message')
+  t.equal(logMessage.detail, 'value', 'got detail')
+  t.equal(logMessage.severity, 'WARN', 'got severity')
+}))
+
+test('logger registers global error handlers', logTest(async (t, { logs, errors, exits }) => {
+  t.plan(5)
+  let fakeLambdaErrorHandler = () => {}
+  fakeProcess.on('uncaughtException', fakeLambdaErrorHandler)
+  Logger()
+
+  fakeProcess.emit('uncaughtException', { stack: 'fake stack' })
+  fakeProcess.emit('unhandledRejection', { stack: 'fake stack' }, true)
+
+  process.removeAllListeners('uncaughtException')
+  process.removeAllListeners('unhandledRejection')
+
+  let logCall = errors.firstCall.args[0]
+  t.ok(logCall.startsWith('ERROR uncaught exception'), 'got error')
+  t.ok(logCall.includes('fake stack'), 'got error')
+
+  let rejectCall = errors.secondCall.args[0]
+  t.ok(rejectCall.startsWith('ERROR unhandled rejection'), 'got error')
+  t.ok(rejectCall.includes('fake stack'), 'got error')
+
+  t.throws(() => Logger(), /twice/, 'did not allow second global handler logger')
+}))
+
+test('logger triggers beforeHandler events', logTest(async (t, { logs, errors }) => {
+  t.plan(3)
+  let logger = Logger({ useGlobalErrorHandler: false })
+
+  let calledHook = false
+  logger.events.on('beforeHandler', (event, context) => {
+    calledHook = true
+    t.ok(event.isEvent, 'got event')
+    t.ok(context.isContext, 'got context')
   })
-})
 
-test('context.succeed should return success result', t => {
+  await logger.handler(async (event, context) => {
+    t.equal(calledHook, true, 'called hook first')
+  })({ isEvent: true }, { isContext: true })
+}))
+
+test('logger errors if handler is not async', logTest(async (t, { logs, errors }) => {
+  let logger = Logger({ useGlobalErrorHandler: false })
+
+  try {
+    await logger.handler((event, context) => {
+      return {}
+    })({}, {functionName: 'test-run', awsRequestId: 'trace', requestContext: { requestId: 'requestId' }})
+    t.fail('should have thrown')
+  } catch (e) {
+    t.ok(/return a promise/.test(e.toString()), 'got error')
+  }
+}))
+
+test('logger throws if setting reserved key', logTest(async (t, { logs, errors }) => {
+  let logger = Logger({ useGlobalErrorHandler: false })
+
+  t.throws(() => logger.setKey('message', 'test'), /reserved/, 'got error')
+}))
+
+test('logger redacts bearer tokens', logTest(async (t, { logs, errors }) => {
   t.plan(1)
-  prepareConsole()
-  var l = logModule((e, c, cb) => { testLogWrapper(); c.succeed('done') })
-  l(defaultEvent, Object.assign({}, defaultContext, { succeed: (result) => {
-    t.equal(result, 'done', 'success result returned')
-  }}))
-})
+  let logger = Logger({ useGlobalErrorHandler: false })
+  logger.info('Bearer eyflkuadfhglkdubg')
+  let logCall = logs.firstCall.args[0]
+  t.ok(logCall.startsWith('INFO --redacted--'), 'got test message')
+}))
 
-test('context.succeed should return success result', t => {
+test('logger uses redactors', logTest(async (t, { logs, errors }) => {
   t.plan(1)
-  prepareConsole()
-  var l = logModule((e, c) => { testLogWrapper(); c.succeed('done') })
-  l(defaultEvent, Object.assign({}, defaultContext, { succeed: (result) => {
-    t.equal(result, 'done', 'success result returned')
-  }}))
-})
-
-test('logger correctly logs expected prefix with .log', t => {
-  makeLogger()
-  logModule.log('test')
-  var lastCall = logCalls.last()
-  t.ok(lastCall[0].match(/severity=INFO/))
-  t.end()
-})
-
-test('logger prepends default severity of info', t => {
-  makeLogger()
-  logModule.log('test')
-  var lastCall = logCalls.last()
-  t.ok(lastCall[0].match(/traceId=asdfghjkl traceIndex=1 (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z) appName=test-function version=test-version severity=INFO/))
-  t.end()
-})
-
-test('logger uses console context functions', t => {
-  var warnOutput = 'warnTest'
-  var errorOutput = 'errorTest'
-  var infoOutput = 'infoTest'
-  makeLoggerContextTest(() => {
-    console.log = function () { logCalls.push(Array.prototype.slice.call(arguments)) }
-    console.warn = function () { t.ok(Array.prototype.slice.call(arguments)[2].match(warnOutput)) }
-    console.error = function () { t.ok(Array.prototype.slice.call(arguments)[2].match(errorOutput)) }
-    console.info = function () { t.ok(Array.prototype.slice.call(arguments)[2].match(infoOutput)) }
+  let logger = Logger({
+    useGlobalErrorHandler: false,
+    redactors: [
+      'string',
+      /regex/,
+      (str) => str.replace('custom', '--removed--')
+    ]
   })
-  logModule.warn(warnOutput)
-  logModule.error(errorOutput)
-  logModule.info(infoOutput)
-  t.end()
-})
+  logger.info('string regex custom test')
+  let logCall = logs.firstCall.args[0]
+  t.ok(logCall.startsWith('INFO --redacted-- --redacted-- --removed-- test'), 'got test message')
+}))
 
-test('logger prepends utility method severity levels', t => {
-  makeLogger()
-  logModule.warn('test')
-  t.ok(logCalls.last()[0].match(/severity=WARN/))
-  logModule.debug('test')
-  t.ok(logCalls.last()[0].match(/severity=DEBUG/))
-  logModule.info('test')
-  t.ok(logCalls.last()[0].match(/severity=INFO/))
-  logModule.error('test')
-  t.ok(logCalls.last()[0].match(/severity=ERROR/))
-  t.end()
-})
-
-test('logger should not log when below minimum severity', t => {
-  makeLogger()
-  var logLength = logCalls.length
-  logModule.setMinimumLogLevel('INFO')
-  logModule.debug('test')
-  t.equal(logCalls.length, logLength, 'log did not get called')
-  t.end()
-})
-
-test('logger should log when above minimum severity', t => {
-  makeLogger()
-  var logLength = logCalls.length
-  logModule.setMinimumLogLevel('DEBUG')
-  logModule.info('test')
-  t.equal(logCalls.length, logLength + 1, 'log got called')
-  t.end()
-})
-
-test('logger should throw if minimum log level is invalid', t => {
-  makeLogger()
-  t.throws(() => logModule.setMinimumLogLevel('garbage'), 'does not allow garbage')
-  t.end()
-})
-
-test('logger should respect default severity set', t => {
-  makeLogger()
-  logModule.setKey('severity', 'WARN')
-  logModule.log('test')
-  var lastCall = logCalls.last()
-  t.ok(lastCall[0].match(/traceId=asdfghjkl traceIndex=1 (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z) appName=test-function version=test-version severity=WARN/))
-  t.end()
-})
-
-test('logger should work if severity is removed from prefix', t => {
-  makeLogger()
-  logModule.logFormat = 'traceId={{traceId}} severity={{severity}} {{date}} appName={{appname}}'
-  logModule.log('test')
-  var lastCall = logCalls.last()
-  t.ok(!lastCall[0].match(/severity=INFO/))
-  logModule.logFormat = 'traceId={{traceId}} someCustomValue={{custom1}} {{date}} appName={{appname}}'
-  logModule.log('test')
-  lastCall = logCalls.last()
-  t.ok(!lastCall[0].match(/severity=INFO/))
-  t.end()
-})
-
-test('logger.format allows format changes', t => {
-  var originalFormat = logModule.format
-  logModule.format = 'appName = {{appname}}'
-  makeLogger()
-  logModule.setKey('severity', 'WARN')
-  logModule.log('test')
-  logModule.format = originalFormat
-  var lastCall = logCalls.last()
-  t.ok(lastCall[0].match(/appName =/), 'should use appName')
-  t.end()
-})
-
-test('logger handles result serialization failure', t => {
-  t.plan(1)
-  var original = logModule.successFormat
-  logModule.successFormat = logModule.successFormat.replace('accessToken={{accessToken}}', 'accessToken={{customAccessToken}}')
-  logModule.setKey('customAccessToken', 'Bearer custom')
-  let logResult = { name: test }
-  logResult.recurse = logResult
-  makeLogger({ result: logResult }, (err, result) => {
-    logModule.successFormat = original
-    if (err) t.end(err)
-    var lastCall = logCalls.last()
-    var accessLog = lastCall[0]
-    // console.log('log', accessLog)
-    t.ok(accessLog.match(/circular structure/))
-  })
-})
+function logTest (testFn) {
+  return async (t) => {
+    let logs = stub(fakeConsole, 'log')
+    let errors = stub(fakeConsole, 'error')
+    let exits = stub(fakeProcess, 'exit')
+    try {
+      return await testFn(t, { logs, errors, exits })
+    } finally {
+      sinon.restore()
+    }
+  }
+}
