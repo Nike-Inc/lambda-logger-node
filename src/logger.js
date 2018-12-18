@@ -187,7 +187,7 @@ function JsonFormatter (logContext, severity, ...args) {
   log.message = args.length === 1 ? formatMessageItem(args[0]) : args.map(formatMessageItem).join(' ')
   log.severity = severity
   let subLogPath = logContext.contextPath.join('.')
-  log.contextPath = subLogPath
+  log.contextPath = subLogPath || undefined
   // put the un-annotated message first to make cloudwatch viewing easier
   // include the MDC annotaed message after with log delimiter to enable parsing
   return `${severity}${subLogPath ? ` ${subLogPath} ` : ' '}${log.message} |\n ${withDelimiter(jsonify(log))}`

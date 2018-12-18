@@ -80,6 +80,7 @@ test('logger sets standard mdc keys for handler', logTest(async (t, { logs, erro
   })({}, {functionName: 'test-run', awsRequestId: 'trace', requestContext: { requestId: 'requestId' }})
 
   let logCall = logs.firstCall.args[0]
+  // console.log(logCall)
   let logMessage = replaceAll(logCall.substring(logCall.indexOf('|') + 1), logModule.LOG_DELIMITER, '')
   logMessage = JSON.parse(logMessage)
   t.equal(logMessage.message, 'handler message', 'got message')
