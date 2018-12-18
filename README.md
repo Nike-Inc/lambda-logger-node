@@ -21,7 +21,7 @@ async function handler (event, context) {
   INFO test message | ___$LAMBDA-LOG-TAG$___{
     "traceId":"8sd3g32-42fg-43th45h-vsafd",
     "date":"2018-12-17T23:37:24Z",
-    "appname":"your-app-name",
+    "appName":"your-app-name",
     "apigTraceId":"897635-3534-33435-435",
     "traceIndex":0,
     "custom":"value",
