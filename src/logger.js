@@ -130,7 +130,7 @@ function setMdcKeys (logContext, lambdaEvent, lambdaContext) {
 
   logContext.logger.setKey('traceId', lambdaContext.awsRequestId)
   logContext.logger.setKey('date', getFormattedDate)
-  logContext.logger.setKey('appname', lambdaContext.functionName)
+  logContext.logger.setKey('appName', lambdaContext.functionName)
   logContext.logger.setKey('version', lambdaContext.functionVersion)
   logContext.logger.setKey('apigTraceId', (lambdaEvent && lambdaEvent.requestContext && lambdaEvent.requestContext.requestId) || (lambdaContext && lambdaContext.requestContext && lambdaContext.requestContext.requestId))
   logContext.logger.setKey('traceIndex', () => traceIndex++)

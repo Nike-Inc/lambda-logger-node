@@ -85,7 +85,7 @@ test('logger sets standard mdc keys for handler', logTest(async (t, { logs, erro
   logMessage = JSON.parse(logMessage)
   t.equal(logMessage.message, 'handler message', 'got message')
   t.equal(logMessage.severity, 'INFO', 'got severity')
-  t.equal(logMessage.appname, 'test-run', 'got appname')
+  t.equal(logMessage.appName, 'test-run', 'got appname')
   t.equal(logMessage.apigTraceId, 'requestId', 'got requestId')
   t.equal(logMessage.traceId, 'trace', 'got trace')
   t.equal(logMessage.traceIndex, 0, 'got trace index')
