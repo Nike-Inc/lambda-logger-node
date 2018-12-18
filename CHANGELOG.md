@@ -4,25 +4,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [3.0.0] - PREVIEW
+### Changed
+Total re-write of the loggers internals and API
 
 ## [2.3.0] - 2018-04-25
-## Added
+### Added
 Support async handlers (return promise instead of using callback)
 
 ## [2.2.1] - 2018-03-02
-## Fixed
+### Fixed
 Possible infinite recursion when running outside of a lambda (again)
 
 ## [2.2.0] - 2018-02-08
-## Added
+### Added
 `delimiter` option
-## Fixed
+### Fixed
 Possible infinite recursion when running outside of a lambda
 
 ## [2.1.1] - 2017-11-16
-## Fixed
+### Fixed
 Failure due to inability to serialize result
 
 ## [2.1.0] - 2017-06-11
-## Added
+### Added
 Initial release

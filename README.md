@@ -27,7 +27,7 @@ async function handler (event, context) {
     "custom":"value",
     "message":"test message",
     "severity":"INFO",
-    "contextPath":""}___$LAMBDA-LOG-TAG$___
+    "contextPath":""}___$LAMBDA-LOG-TAG$___ <-- one line when loged, whitespace for docs
   */
 }
 ```
@@ -83,14 +83,14 @@ const logger = Logger({
 module.exports = logger
 
 // lambda.js
-const logger = require('./logger)
+const logger = require('./logger')
 exports.handler = logger(handler)
 async function handler (event, context) {
   // your lambda handler
 }
 
 // api.js
-const logger = require('./logger)
+const logger = require('./logger')
 module.exports { someFunc }
 
 function someFunc() {
@@ -98,6 +98,8 @@ function someFunc() {
   logger.info('custom log')
 }
 ```
+
+In addition to this method allowing global use of your lambda, the logger is attached to the handler's `context` argument as `context.logger`. When the lambda handler is executed all of the request-specific values (like the *traceId*) are updated, even when the module is declared and `required` outside the handler like the one above.
 
 # Logger API
 
@@ -117,7 +119,7 @@ function Logger ({
 * `bool:useGlobalErrorHandler`: default: `true`. Attach process-level handlers for uncaught exceptions and unhandled rejections to log messages with the logger. Attempting to construct two loggers with this setting will result in an error,
 * `[string|RegExp|func]:redactors`: an array of redactors to process all log messages with. A `string` will be removed verbatim, a `RegExp` will be removed if it matches. If a function is given it is passed the log message as a string, and *MUST* return a string (whether it replaced anything or not).
 * `bool: useBearerRedactor`: default: `true`, add a bearer token redactor to the list of redactors.
-* `func: formatter`: format messages before they are written out. The default formatter is used if this option is left off. This is an advanced customization point.
+* `func: formatter`: format messages before they are written out. The default formatter is used if this option is left off. This is an advanced customization point, and a deep understanding of the logger will be necessary to implement a custom formatter (there are no docs other than source code right now).
 
 The Logger constructor returns a logger instance with the following API
 
