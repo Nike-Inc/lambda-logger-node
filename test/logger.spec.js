@@ -151,7 +151,7 @@ test('logger registers global error handlers', logTest(async (t, { logs, errors,
   t.plan(5)
   let fakeLambdaErrorHandler = () => {}
   fakeProcess.on('uncaughtException', fakeLambdaErrorHandler)
-  Logger()
+  Logger({ forceGlobalErrorHandler: true })
 
   fakeProcess.emit('uncaughtException', { stack: 'fake stack' })
   fakeProcess.emit('unhandledRejection', { stack: 'fake stack' }, true)
@@ -167,7 +167,7 @@ test('logger registers global error handlers', logTest(async (t, { logs, errors,
   t.ok(rejectCall.startsWith('ERROR unhandled rejection'), 'got error')
   t.ok(rejectCall.includes('fake stack'), 'got error')
 
-  t.throws(() => Logger(), /twice/, 'did not allow second global handler logger')
+  t.throws(() => Logger({ forceGlobalErrorHandler: true }), /twice/, 'did not allow second global handler logger')
 }))
 
 test('logger triggers beforeHandler events', logTest(async (t, { logs, errors }) => {

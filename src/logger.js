@@ -45,6 +45,7 @@ function Logger ({
   formatter = JsonFormatter,
   useBearerRedactor = true,
   useGlobalErrorHandler = true,
+  forceGlobalErrorHandler = false,
   redactors = []
 } = {}) {
   const context = {
@@ -58,7 +59,7 @@ function Logger ({
     redactors.push(bearerRedactor())
   }
   if (useGlobalErrorHandler) {
-    registerErrorHandlers(context)
+    registerErrorHandlers(context, forceGlobalErrorHandler)
   }
   context.redact = wrapRedact(context, redactors)
 
@@ -219,7 +220,10 @@ function bearerRedactor () {
 // Error Handling
 //
 
-function registerErrorHandlers (logContext) {
+function registerErrorHandlers (logContext, force) {
+  if (!force && isInTestMode()) {
+    return
+  }
   clearLambdaExceptionHandlers()
   logContext.globalErrorHandler = (err, promise) => {
     if (promise) {
@@ -268,4 +272,22 @@ function formatRfc3339 (d) {
 
 function isPromise (promise) {
   return promise && promise.then !== undefined && typeof promise.then === 'function'
+}
+
+function isInTestMode () {
+  let isMocha = global.it !== undefined
+  let isJest = global.jest !== undefined
+  let isTape = hasModuleLoaded('tape')
+  let env = process.env.TEST || process.env.test || process.env.ci || process.env.CI
+  // console.log('load', env, isMocha, isJest, isTape)
+  return env || isMocha || isJest || isTape
+}
+
+function hasModuleLoaded (moduleName) {
+  try {
+    return !!require.cache[require.resolve(moduleName)]
+  } catch (e) {
+    if (/Cannot find module/.test(e.toString())) return false
+    throw e
+  }
 }
