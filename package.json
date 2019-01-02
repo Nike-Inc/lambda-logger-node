@@ -1,16 +1,27 @@
 {
   "name": "lambda-logger-node",
-  "version": "2.4.0",
+  "version": "3.0.0-beta.1",
   "description": "A logger middleware for AWS Lambda functions",
-  "main": "src/index.js",
+  "main": "src/logger.js",
   "files": [
     "src"
   ],
+  "engines": {
+    "node": ">=8.10"
+  },
   "scripts": {
+    "test:coverage": "nyc --check-coverage --lines 90 npm run test:unit && npm run report",
+    "test": "npm run style && npm run test:unit",
+    "test:unit": "blue-tape \"test/**/**.spec.js\" | tap-spec",
+    "test:unit:watch": "npm run test:unit -s & chokidar 'src/**/*.js' 'test/**/*.spec.js' --polling -c \"clear && npm run test:unit -s\"",
+    "test:watch": "npm run test:coverage -s & chokidar 'src/**/*.js' 'test/**/*.spec.js' --polling -c \"npm run test:coverage -s\"",
+    "test:ci": "npm run style && blue-tape test/**/**.spec.js | tap-xunit > xunit.xml && blue-tape test/**/**.int.js | tap-xunit > xunit.xml && npm run test:coverage && npm run report:ci",
+    "report": "nyc report --reporter=html",
+    "report:ci": "npm run report",
+    "report:open": "npm run report && open coverage/index.html",
+    "test:coverage:open": "npm run test:coverage && npm run report:open",
     "style": "standard \"src/**/*.js\" | snazzy",
-    "style:fix": "standard \"src/**/*.js\" --fix",
-    "test": "npm run style && blue-tape test/**/**.js | ./node_modules/.bin/tap-spec",
-    "test:watch": "npm run test -s & ./node_modules/.bin/chokidar 'src/**/*.js' 'test/**/*.js' --polling -c \"./node_modules/.bin/blue-tape test/**/**.js | node_modules/.bin/tap-spec\""
+    "style:fix": "standard \"src/**/*.js\" --fix"
   },
   "repository": {
     "type": "git",
@@ -22,13 +33,18 @@
   ],
   "author": "Tim Kye",
   "license": "UNLICENSED",
-  "dependencies": {},
+  "dependencies": {
+    "fast-safe-stringify": "^2.0.6"
+  },
   "devDependencies": {
     "babel-eslint": "^7.2.3",
     "blue-tape": "^1.0.0",
-    "chokidar-cli": "^1.2.0",
+    "chokidar-cli": "^1.2.1",
+    "nyc": "^13.1.0",
+    "rewire": "^4.0.1",
+    "sinon": "^7.2.2",
     "snazzy": "^7.0.0",
-    "standard": "8.1.0",
-    "tap-spec": "^4.1.1"
+    "standard": "^12.0.1",
+    "tap-spec": "^5.0.0"
   }
 }

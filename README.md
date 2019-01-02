@@ -1,17 +1,35 @@
 # lambda-logger-node
 
-A middleware logger that implements the MDC logging pattern for use in AWS NodeJS Lambdas
+A middleware logger that implements the MDC logging pattern for use in AWS NodeJS Lambdas. It provides 4 log levels (DEBUG, INFO, WARN, ERROR), custom message attributes, and allows the creation of sub-loggers.
 
-This logger does two things.
+It is designed to make log messages easily readable by humans from Cloudwatch, as well as easily parsed by machines for ingestion into downstream systems like the ELK stack. When a log call is made the log level and message are placed first, followed by a JSON-stringified object that contains the message and custom attributes.
 
-1. Replaces `console.log` with a curried function that prepends any configured key/value pairs (or the default ones) onto the logged message. Both the format and values can be customized. The default format is
-```
-traceId={{traceId}} traceIndex={{traceIndex}} {{date}} appname={{appname}} version={{version}} severity={{severity}} | {{originalMessage}}
-```
+Since v3 lambda-logger-node only supports wrapping async function handlers.
 
-2. Replaces the lambda `callback` (as well as `context.[fail|done|succeed] for legacy lambdas`) with a function will log an access log before passing the result onto AWS. It will look something like This
-```
-requestURL=/some/route requestMethod=GET elapsedTime=-11 accessToken=Bearer 12 restApiId=request-id apigTraceId=098sgs7d-fi2n465-12msr
+## Quick Start
+
+```javascript
+// lambda.js
+const { Logger } = require('lambda-logger-node')
+let logger = Logger()
+logger.setKey('custom', 'value')
+
+exports.handler = logger.handler(handler)
+async function handler (event, context) {
+  logger.info('test message') // ->
+  /*
+  INFO test message | ___$LAMBDA-LOG-TAG$___{
+    "traceId":"8sd3g32-42fg-43th45h-vsafd",
+    "date":"2018-12-17T23:37:24Z",
+    "appName":"your-app-name",
+    "apigTraceId":"897635-3534-33435-435",
+    "traceIndex":0,
+    "custom":"value",
+    "message":"test message",
+    "severity":"INFO",
+    "contextPath":""}___$LAMBDA-LOG-TAG$___ <-- one line when loged, whitespace for docs
+  */
+}
 ```
 
 # Installation
@@ -22,14 +40,15 @@ npm install lambda-logger-node
 
 # Usage
 
-Lambda handler
+Simple Lambda handler
 
 ```javascript
-var logger = require('lambda-logger-node')
+const { Logger } = require('lambda-logger-node')
+const logger = Logger()
 
 exports.handler = logger(handler)
 
-function handler (event, context, callback) {
+async function handler (event, context) {
   // your lambda handler
 }
 
@@ -38,113 +57,93 @@ function handler (event, context, callback) {
 Or, with more middleware
 
 ```javascript
-var logger = require('lambda-logger-node')
+const { Logger } = require('lambda-logger-node')
+const logger = Logger()
 var moreMiddleware = require('more-middleware')
 
-exports.handler = logger(moreMiddleware(handler))
+exports.handler = logger.handler(moreMiddleware(handler))
 
-function handler (event, context, callback) {
+async function handler (event, context) {
   // your lambda handler
 }
 ```
 
-Or, with functional composition
+## Recommended setup
+
+To simplify usage of the logger throughout your application configure a logger in its own module.
 
 ```javascript
-var compose = require('compose-func')
-var logger = require('lambda-logger-node')
-var moreMiddleware = require('more-middleware')
+// logger.js
+const config = require('./config')
+const { Logger } = require('lambda-logger-node')
+const logger = Logger({
+  minimumLogLevel = config.isProduction ? 'INFO' : null
+})
 
-exports.handler = compose(logger, moreMiddleware)(handler)
+module.exports = logger
 
-function handler (event, context, callback) {
-  // your lambda handler
-}
-```
-
-# Restoring `console.log`
-
-If you do not like the replacement of `console.log` you can restore the original one and use the `log` function on the module export to get the prepended logs.
-
-```javascript
-var logger = require('lambda-logger-node')
-
+// lambda.js
+const logger = require('./logger')
 exports.handler = logger(handler)
-
-function handler (event, context, callback) {
-  logger.restoreConsoleLog()
-  logger.log('This log will have the access log data prepended on it')
-  console.log('This will be a normal log')
+async function handler (event, context) {
   // your lambda handler
+}
+
+// api.js
+const logger = require('./logger')
+module.exports { someFunc }
+
+function someFunc() {
+  // app code
+  logger.info('custom log')
 }
 ```
 
-# Customizing logs
+In addition to this method allowing global use of your lambda, the logger is attached to the handler's `context` argument as `context.logger`. When the lambda handler is executed all of the request-specific values (like the *traceId*) are updated, even when the module is declared and `required` outside the handler like the one above.
 
-The `console.log` replacement prepends on any configured key/value pairs using a custom string interpolation function. It can be controlled in two ways
+# Logger API
 
-* `logger.format` is the format string that will be interpolated and prepended to all `console.log` calls.
-
-
- The format string is on `[[module.export]].format`. The default value is
+The Logger module exports a constructor on `Logger` that takes the following options
 
 ```javascript
-'traceId={{traceId}} {{date}} appname={{appname}} version={{version}}'
+function Logger ({
+  minimumLogLevel = null,
+  useGlobalErrorHandler = true,
+  redactors = [],
+  useBearerRedactor = true,
+  formatter = JsonFormatter
+} = {})
 ```
 
-You can set this to any value, at any time, to change the log-prepend output. The replacement values inside of `{{traceId}}` can be set with `[[module.export]].setKey(key, value)`. Values can be either literals (string, integer, object) or functions. If a function is used, it will be called with no arguments at log-time to get the value (this is actually how the `{{date}}` token is implemented).
+* `string: minimumLogLevel`: one of DEBUG | INFO | WARN | ERROR. Supress messages that are below this level in severity.
+* `bool:useGlobalErrorHandler`: default: `true`. Attach process-level handlers for uncaught exceptions and unhandled rejections to log messages with the logger. Attempting to construct two loggers with this setting will result in an error,
+* `[string|RegExp|func]:redactors`: an array of redactors to process all log messages with. A `string` will be removed verbatim, a `RegExp` will be removed if it matches. If a function is given it is passed the log message as a string, and *MUST* return a string (whether it replaced anything or not).
+* `bool: useBearerRedactor`: default: `true`, add a bearer token redactor to the list of redactors.
+* `func: formatter`: format messages before they are written out. The default formatter is used if this option is left off. This is an advanced customization point, and a deep understanding of the logger will be necessary to implement a custom formatter (there are no docs other than source code right now).
 
-```javascript
-var logger = require('lambda-logger-node')
-// Add more values
-logger.format += ' someCustomValue={{custom1}} anotherCustomValue={{custom2}}'
-
-// OR change the format string entirely
-logger.format = 'traceId={{traceId}} someCustomValue={{custom1}} {{date}} appname={{appname}}'
-
-// Set token values
-logger.setKey('appname', 'custom-app-name')
-logger.setKey('custom1', 'some-constant-value')
-logger.setKey('custom2', () => Math.random())
-
-// customize date format
-logger.setKey('date', () => customDateFormattter(Date.now()))
-
-// Change the log delimiter
-logger.delimiter = ':'
-```
-
-
-# The Final Log
-
-After you return from your handler the logger will make one final log entry with either the error or the result from your handler. This log has a special format controlled by the `logModule.successFormat` and `logModule.errorFormat`. By default they are both the same:
-
-Final log format
+The Logger constructor returns a logger instance with the following API
 
 ```
-var finalFormat = logFormat + 'requestURL={{requestURL}} requestMethod={{requestMethod}} elapsedTime={{elapsedTime}} accessToken={{accessToken}} apiKey={{apiKey}} restApiId={{restApiId}} apigTraceId={{apigTraceId}} restResourceId={{restResourceId}} result={{result}}'
+{
+    handler,
+    setMinimumLogLevel,
+    events,
+    setKey,
+    createSubLogger,
+    info,
+    warn,
+    error,
+    debug
+  }
 ```
 
-You can customize either format by setting `logModule.successFormat` or `logModule.errorFormat` properties. If the `logModule.successFormat` or `logModule.errorFormat` are falsy when the handler results in a success or failure, respectively, no final log will be made.
+* `handler`: Takes a handler function as input and returns a wrapped handler function that configures per-request keys such as `traceId`.
+* `setMinimumLogLevel`: Takes a log level (DEBUG | INFO | WARN | ERROR) and sets the same `minimumLogLevel` that the constructor took. Useful if this is not known until the handler has executed.
+* `events`: an `EventEmitter`. Currently only supports `beforeHandler`.
+* `setKey`: add a custom sttribute to all log messages. First argument is a string name for the attributes. The second argument is a value, or a value-returning function (function will be executed at log-time).
+* `debug|info|warn|error`: Create a log for the matching severity.
+* `createSubLogger(string: subLoggerName)`: Creates a sub-logger that only has the log methods (`debug|info|warn|error`) and `createSubLogger`. Useful for providing loggers to sub-components like your Dynamo Client. Its messages are prefixed with the sub-loggers name; if there are multiple levels of sub-loggers each sub-logger is included in the prefix. e.g. for a sub-logger "SubTwo" that is a sub-logger of another sub-logger "SubOne" the message would be `INFO SubOne.SubTwo message`.
 
-> Warning: If you clear the `logModule.successFormat` or `logModule.errorFormat` at the end of your handler to supress the final log all future success or failure logs will be supressed. This is because the logger does not reset these properties on each lambda invocation. If you only want to supress a single final log you can call `logModule.supressCurrentFinalLog`, or make sure to reset the `logModule.successFormat` or `logModule.errorFormat` at the beginning of your handler.
-
-## Supressing the final log
-
-You can stop the logger from logging all success or error logs by setting `logModule.successFormat` or `logModule.errorFormat` to a falsy value. However, these are global properties and persist beyond a single lambda invocation. If you want to supress *only the current invocation's final log* you can call `logModule.supressCurrentFinalLog()`. The flag this call sets is reset every time the handler runs, so you cannot call it before your handler. It is intended to be called at the end of the handler to cancel *just the current invocation*.
-
-# Log Levels
-
-The logger provides two methods to log with different severity.
-
-* `console.(warn|info|error|log|debug)`
-* `logger.(debug|info|warn|error)`
-
-These will include a `severity=${loglevel}` entry in the log.
-
-## Setting Minimum Log Level
-
-Use `logger.setMinimumLogLevel('debug|info|warn|error')` to ignore log levels below the selected one. For example, calling `logger.setMinimumLogLevel('info')` will cause calls to `logger.debug()` to be ignored. This allows the same code to be deployed to development and production, while keeping the production logs quieter.
 
 # Events
 
