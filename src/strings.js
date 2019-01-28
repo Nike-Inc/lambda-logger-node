@@ -14,7 +14,9 @@ function stringRedactor (find) {
 }
 
 function regexRedactor (find) {
-  return val => replaceAllRegex(val, find, REDACTION)
+  // force global replace
+  const findAll = new RegExp(find.source, 'g')
+  return val => replaceAllRegex(val, findAll, REDACTION)
 }
 
 function replaceAllRegex (str, regex, replace) {

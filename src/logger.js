@@ -278,6 +278,7 @@ function isInTestMode () {
   let isMocha = global.it !== undefined
   let isJest = global.jest !== undefined
   let isTape = hasModuleLoaded('tape')
+  console.log('has tape loaded', isTape)
   let env = process.env.TEST || process.env.test || process.env.ci || process.env.CI
   // console.log('load', env, isMocha, isJest, isTape)
   return env || isMocha || isJest || isTape

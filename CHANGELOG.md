@@ -4,7 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
-## [3.0.0] - PREVIEW
+## [3.0.1] - 2019-01-28
+### Fixed
+Regex redactors not redacting all instances
+
+## [3.0.0] - 2019-01-02
 ### Changed
 Total re-write of the loggers internals and API
 

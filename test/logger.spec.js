@@ -17,6 +17,7 @@ fakeProcess.exit = () => {}
 fakeProcess.stdout = {
   write: console.log.bind(console)
 }
+fakeProcess.env = {}
 logModule.__set__({
   console: fakeConsole,
   process: fakeProcess
@@ -55,7 +56,7 @@ test('logger stringifies objects', logTest(async (t, { logs, errors }) => {
   let logCall = logs.firstCall.args[0]
   let logMessage = logCall.substring(logCall.indexOf('INFO ') + 5, logCall.indexOf('|'))
   logMessage = JSON.parse(logMessage)
-  t.same(logMessage, {...message, circ: '[Circular]'}, 'got object with circular removed')
+  t.same(logMessage, { ...message, circ: '[Circular]' }, 'got object with circular removed')
 }))
 
 test('logger includes detailed message', logTest(async (t, { logs, errors }) => {
@@ -77,7 +78,7 @@ test('logger sets standard mdc keys for handler', logTest(async (t, { logs, erro
   await logger.handler(async (event, context) => {
     logger.setKey('detail', 'value')
     logger.info('handler message')
-  })({}, {functionName: 'test-run', awsRequestId: 'trace', requestContext: { requestId: 'requestId' }})
+  })({}, { functionName: 'test-run', awsRequestId: 'trace', requestContext: { requestId: 'requestId' } })
 
   let logCall = logs.firstCall.args[0]
   // console.log(logCall)
@@ -170,6 +171,19 @@ test('logger registers global error handlers', logTest(async (t, { logs, errors,
   t.throws(() => Logger({ forceGlobalErrorHandler: true }), /twice/, 'did not allow second global handler logger')
 }))
 
+test('logger handles error handles in test mode', logTest(async (t, { logs, errors, exits }) => {
+  t.plan(1)
+  Logger({ useGlobalErrorHandler: true })
+  try {
+    Logger({ useGlobalErrorHandler: true })
+    t.pass('did not throw on second global handler logger')
+  } catch (e) {
+    console.log('failed', logs.args)
+    t.fail('threw')
+    throw e
+  }
+}))
+
 test('logger triggers beforeHandler events', logTest(async (t, { logs, errors }) => {
   t.plan(3)
   let logger = Logger({ useGlobalErrorHandler: false })
@@ -192,7 +206,7 @@ test('logger errors if handler is not async', logTest(async (t, { logs, errors }
   try {
     await logger.handler((event, context) => {
       return {}
-    })({}, {functionName: 'test-run', awsRequestId: 'trace', requestContext: { requestId: 'requestId' }})
+    })({}, { functionName: 'test-run', awsRequestId: 'trace', requestContext: { requestId: 'requestId' } })
     t.fail('should have thrown')
   } catch (e) {
     t.ok(/return a promise/.test(e.toString()), 'got error')
@@ -206,11 +220,22 @@ test('logger throws if setting reserved key', logTest(async (t, { logs, errors }
 }))
 
 test('logger redacts bearer tokens', logTest(async (t, { logs, errors }) => {
-  t.plan(1)
-  let logger = Logger({ useGlobalErrorHandler: false })
+  t.plan(2)
+  let logger = Logger({ useGlobalErrorHandler: false, useBearerRedactor: true })
   logger.info('Bearer eyflkuadfhglkdubg')
   let logCall = logs.firstCall.args[0]
-  t.ok(logCall.startsWith('INFO --redacted--'), 'got test message')
+  t.ok(logCall.includes('INFO --redacted--'), 'got test message')
+  t.notOk(logCall.includes('eyflkuadfhglkdubg'), 'did not find token')
+}))
+
+test('logger redacts bearer tokens in JSON', logTest(async (t, { logs, errors }) => {
+  t.plan(2)
+  let logger = Logger({ useGlobalErrorHandler: false, useBearerRedactor: true })
+  logger.info(JSON.stringify({ headers: { Authorization: 'Bearer eyflkuadfhglkdubg' } }))
+  let logCall = logs.firstCall.args[0]
+  // console.log(logCall)
+  t.ok(logCall.includes('--redacted--'), 'got test message')
+  t.notOk(logCall.includes('eyflkuadfhglkdubg'), 'did not find token')
 }))
 
 test('logger uses redactors', logTest(async (t, { logs, errors }) => {
