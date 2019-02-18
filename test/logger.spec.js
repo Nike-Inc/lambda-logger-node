@@ -220,22 +220,37 @@ test('logger throws if setting reserved key', logTest(async (t, { logs, errors }
 }))
 
 test('logger redacts bearer tokens', logTest(async (t, { logs, errors }) => {
-  t.plan(2)
+  t.plan(3)
   let logger = Logger({ useGlobalErrorHandler: false, useBearerRedactor: true })
-  logger.info('Bearer eyflkuadfhglkdubg')
+  logger.info('Bearer eyflkua.dfhglkdubg')
   let logCall = logs.firstCall.args[0]
+  // console.log(logCall)
   t.ok(logCall.includes('INFO --redacted--'), 'got test message')
-  t.notOk(logCall.includes('eyflkuadfhglkdubg'), 'did not find token')
+  t.notOk(logCall.includes('eyflkua.dfhglkdubg'), 'did not find token')
+  t.notOk(logCall.includes('dfhglkdubg'), 'did not find sub token')
+}))
+
+test('logger redacts bearer tokens without "bearer"', logTest(async (t, { logs, errors }) => {
+  t.plan(3)
+  let logger = Logger({ useGlobalErrorHandler: false, useBearerRedactor: true })
+  logger.info('Bearer eyflkua.dfhglkdubg')
+  logger.info('eyflkua.dfhglkdubg')
+  let logCall = logs.secondCall.args[0]
+  // console.log(logCall)
+  t.ok(logCall.includes('INFO --redacted--'), 'got test message')
+  t.notOk(logCall.includes('eyflkua.dfhglkdubg'), 'did not find token')
+  t.notOk(logCall.includes('dfhglkdubg'), 'did not find sub token')
 }))
 
 test('logger redacts bearer tokens in JSON', logTest(async (t, { logs, errors }) => {
-  t.plan(2)
+  t.plan(3)
   let logger = Logger({ useGlobalErrorHandler: false, useBearerRedactor: true })
-  logger.info(JSON.stringify({ headers: { Authorization: 'Bearer eyflkuadfhglkdubg' } }))
+  logger.info(JSON.stringify({ headers: { Authorization: 'Bearer eyflkua.dfhglkdubg' } }))
   let logCall = logs.firstCall.args[0]
   // console.log(logCall)
   t.ok(logCall.includes('--redacted--'), 'got test message')
-  t.notOk(logCall.includes('eyflkuadfhglkdubg'), 'did not find token')
+  t.notOk(logCall.includes('eyflkua.dfhglkdubg'), 'did not find token')
+  t.notOk(logCall.includes('dfhglkdubg'), 'did not find sub token')
 }))
 
 test('logger uses redactors', logTest(async (t, { logs, errors }) => {
@@ -255,7 +270,10 @@ test('logger uses redactors', logTest(async (t, { logs, errors }) => {
 
 function logTest (testFn) {
   return async (t) => {
-    let logs = stub(fakeConsole, 'log')
+    let logs = stub(fakeConsole, 'log').callsFake((...args) => {
+      // Enable for debugging
+      // console.log('module log', ...args)
+    })
     let errors = stub(fakeConsole, 'error')
     let exits = stub(fakeProcess, 'exit')
     try {
