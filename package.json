@@ -15,7 +15,7 @@
     "test:unit": "blue-tape \"test/**/**.spec.js\" | tap-spec",
     "test:unit:watch": "npm run test:unit -s & chokidar 'src/**/*.js' 'test/**/*.spec.js' --polling -c \"clear && npm run test:unit -s\"",
     "test:watch": "npm run test:coverage -s & chokidar 'src/**/*.js' 'test/**/*.spec.js' --polling -c \"npm run test:coverage -s\"",
-    "test:ci": "npm run style && blue-tape test/**/**.spec.js | tap-xunit > xunit.xml && blue-tape test/**/**.int.js | tap-xunit > xunit.xml && npm run test:coverage && npm run report:ci",
+    "test:ci": "npm run style && blue-tape test/**/**.spec.js | tap-xunit > xunit.xml && npm run test:coverage && npm run report:ci",
     "report": "nyc report --reporter=html",
     "report:ci": "npm run report",
     "report:open": "npm run report && open coverage/index.html",
@@ -45,6 +45,7 @@
     "sinon": "^7.2.2",
     "snazzy": "^7.0.0",
     "standard": "^12.0.1",
-    "tap-spec": "^5.0.0"
+    "tap-spec": "^5.0.0",
+    "tap-xunit": "^2.3.0"
   }
 }
