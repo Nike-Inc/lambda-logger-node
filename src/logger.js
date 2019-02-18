@@ -215,7 +215,7 @@ function wrapRedact (logContext, redactors) {
 
 function bearerRedactor (logContext) {
   const tokens = []
-  const bearerRegex = /Bearer (ey[\w\.]+)/ // eslint-disable-line no-useless-escape
+  const bearerRegex = /Bearer (ey[\w-\.]+)/ // eslint-disable-line no-useless-escape
   // Only keep the token for the current handler invocation
   if (logContext.events) {
     logContext.events.on('beforeHandler', () => {
