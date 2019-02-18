@@ -23,6 +23,9 @@ logModule.__set__({
   process: fakeProcess
 })
 const { Logger, LOG_DELIMITER } = logModule
+const testToken = 'eyJraWQiOiIxTkJ3QTJDeWpKRmdDYU5SOXlXZW1jY2ZaaDFjZ19ET1haWXVWcS1oX2RFIiwiYWxnIjoiUlMyNTYifQ.eyJ2ZXIiOjEsImp0aSI6IkFULjV5bFc5ekxBM0xGdkJVVldFY0F3NmdBVkl6SlRaUWJzRTE2S2VEUnpfT3MiLCJpc3MiOiJodHRwczovL25pa2UtcWEub2t0YXByZXZpZXcuY29tL29hdXRoMi9hdXNhMG1jb3JucFpMaTBDNDBoNyIsImF1ZCI6Imh0dHBzOi8vbmlrZS1xYS5va3RhcHJldmlldy5jb20iLCJpYXQiOjE1NTA1MzA5MjYsImV4cCI6MTU1MDUzNDUyNiwiY2lkIjoibmlrZS5uaWtldGVjaC50b2tlbi1nZW5lcmF0b3IiLCJ1aWQiOiIwMHU4Y2F1dGgxczhqN2ZFYjBoNyIsInNjcCI6WyJvcGVuaWQiLCJwcm9maWxlIiwiZW1haWwiXSwic3ViIjoiVGltb3RoeS5LeWVAbmlrZS5jb20iLCJncm91cHMiOlsiQXBwbGljYXRpb24uVVMuRlRFLlVzZXJzIl19.nEfPoRPvrL1x6zsNzPWDN14AYV_AG62L0-I6etCGJlZZaOGFMnjBw4FLD-6y30MNdufwweVJ-RHApjDDaPVNQja6K7jaxBmZ1ryWy-JOO1IootRrF3aew5JlE6Q9CQ93I39uHsRCwWiy8tG_rYy7isv8ygz9xnCBRb3NQj7oBChJPvkwvO_DXD4MHde54aXLY6yryuHse-1MuEBXveZmCr6D2cUgHFNXFMwSwazXifHe8tJe2mItRq5l4zSZJQYDexm8Ww5XTwItiQZXV50dMF7F3D2A2tKwqF10CWy3ilw40BOEa3n0ptsDZmD4I3R0711vz_A21z3vYjqjt8pIxw'
+const tokenSignature = 'nEfPoRPvrL1x6zsNzPWDN14AYV_AG62L0-I6etCGJlZZaOGFMnjBw4FLD-6y30MNdufwweVJ-RHApjDDaPVNQja6K7jaxBmZ1ryWy-JOO1IootRrF3aew5JlE6Q9CQ93I39uHsRCwWiy8tG_rYy7isv8ygz9xnCBRb3NQj7oBChJPvkwvO_DXD4MHde54aXLY6yryuHse-1MuEBXveZmCr6D2cUgHFNXFMwSwazXifHe8tJe2mItRq5l4zSZJQYDexm8Ww5XTwItiQZXV50dMF7F3D2A2tKwqF10CWy3ilw40BOEa3n0ptsDZmD4I3R0711vz_A21z3vYjqjt8pIxw'
+const subSignature = 'ItRq5l4zSZJQYDexm8Ww5XTwItiQZXV50dMF7F3D2A2tKwqF10CWy3ilw40BOEa3n0ptsDZmD4I3R0711vz_A21z3vYjqjt8pIxw'
 
 test('Logger returns logger', t => {
   let logger = Logger({ useGlobalErrorHandler: false })
@@ -220,22 +223,52 @@ test('logger throws if setting reserved key', logTest(async (t, { logs, errors }
 }))
 
 test('logger redacts bearer tokens', logTest(async (t, { logs, errors }) => {
-  t.plan(2)
+  t.plan(4)
   let logger = Logger({ useGlobalErrorHandler: false, useBearerRedactor: true })
-  logger.info('Bearer eyflkuadfhglkdubg')
+  logger.info(`Bearer ${testToken}`)
   let logCall = logs.firstCall.args[0]
+  // console.log(logCall)
   t.ok(logCall.includes('INFO --redacted--'), 'got test message')
-  t.notOk(logCall.includes('eyflkuadfhglkdubg'), 'did not find token')
+  t.notOk(logCall.includes(testToken), 'did not find token')
+  t.notOk(logCall.includes(tokenSignature), 'did not find sub token')
+  t.notOk(logCall.includes(subSignature), 'did not find sub section')
+}))
+
+test('logger redacts bearer tokens without "bearer"', logTest(async (t, { logs, errors }) => {
+  t.plan(4)
+  let logger = Logger({ useGlobalErrorHandler: false, useBearerRedactor: true })
+  logger.info(`Bearer ${testToken}`)
+  logger.info(testToken)
+  let logCall = logs.secondCall.args[0]
+  // console.log(logCall)
+  t.ok(logCall.includes('INFO --redacted--'), 'got test message')
+  t.notOk(logCall.includes(testToken), 'did not find token')
+  t.notOk(logCall.includes(tokenSignature), 'did not find sub token')
+  t.notOk(logCall.includes(subSignature), 'did not find sub section')
 }))
 
 test('logger redacts bearer tokens in JSON', logTest(async (t, { logs, errors }) => {
-  t.plan(2)
+  t.plan(4)
   let logger = Logger({ useGlobalErrorHandler: false, useBearerRedactor: true })
-  logger.info(JSON.stringify({ headers: { Authorization: 'Bearer eyflkuadfhglkdubg' } }))
+  logger.info(JSON.stringify({ headers: { Authorization: `Bearer ${testToken}` } }))
   let logCall = logs.firstCall.args[0]
   // console.log(logCall)
   t.ok(logCall.includes('--redacted--'), 'got test message')
-  t.notOk(logCall.includes('eyflkuadfhglkdubg'), 'did not find token')
+  t.notOk(logCall.includes(testToken), 'did not find token')
+  t.notOk(logCall.includes(tokenSignature), 'did not find sub token')
+  t.notOk(logCall.includes(subSignature), 'did not find sub section')
+}))
+
+test('logger redacts bearer tokens in object', logTest(async (t, { logs, errors }) => {
+  t.plan(4)
+  let logger = Logger({ useGlobalErrorHandler: false, useBearerRedactor: true })
+  logger.info({ headers: { Authorization: `Bearer ${testToken}` } })
+  let logCall = logs.firstCall.args[0]
+  // console.log(logCall)
+  t.ok(logCall.includes('--redacted--'), 'got test message')
+  t.notOk(logCall.includes(testToken), 'did not find token')
+  t.notOk(logCall.includes(tokenSignature), 'did not find sub token')
+  t.notOk(logCall.includes(subSignature), 'did not find sub section')
 }))
 
 test('logger uses redactors', logTest(async (t, { logs, errors }) => {
@@ -255,7 +288,10 @@ test('logger uses redactors', logTest(async (t, { logs, errors }) => {
 
 function logTest (testFn) {
   return async (t) => {
-    let logs = stub(fakeConsole, 'log')
+    let logs = stub(fakeConsole, 'log').callsFake((...args) => {
+      // Enable for debugging
+      // console.log('module log', ...args)
+    })
     let errors = stub(fakeConsole, 'error')
     let exits = stub(fakeProcess, 'exit')
     try {

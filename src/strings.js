@@ -6,7 +6,8 @@ module.exports = {
   replaceAll,
   replaceAllRegex,
   stringRedactor,
-  regexRedactor
+  regexRedactor,
+  redact
 }
 
 function stringRedactor (find) {
@@ -21,6 +22,10 @@ function regexRedactor (find) {
 
 function replaceAllRegex (str, regex, replace) {
   return str.replace(regex, replace)
+}
+
+function redact (str, find) {
+  return replaceAll(str, find, REDACTION)
 }
 
 // Taken from https://stackoverflow.com/a/1144788/788260

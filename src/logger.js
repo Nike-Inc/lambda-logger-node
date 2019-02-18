@@ -12,7 +12,7 @@ Properties of an ideal logger
 
 const { EventEmitter } = require('events')
 const jsonify = require('fast-safe-stringify')
-const { stringRedactor, regexRedactor } = require('./strings')
+const { stringRedactor, regexRedactor, redact } = require('./strings')
 
 const logLevels = ['DEBUG', 'INFO', 'WARN', 'ERROR']
 const LOG_DELIMITER = '___$LAMBDA-LOG-TAG$___'
@@ -56,7 +56,7 @@ function Logger ({
     keys: new Map()
   }
   if (useBearerRedactor) {
-    redactors.push(bearerRedactor())
+    redactors.push(bearerRedactor(context))
   }
   if (useGlobalErrorHandler) {
     registerErrorHandlers(context, forceGlobalErrorHandler)
@@ -213,8 +213,36 @@ function wrapRedact (logContext, redactors) {
   return (value) => logContext.redactors.reduce((val, redactor) => redactor(val), value)
 }
 
-function bearerRedactor () {
-  return /Bearer ey\w+/
+function bearerRedactor (logContext) {
+  const tokens = []
+  const bearerRegex = /Bearer ([A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]*)/ // eslint-disable-line no-useless-escape
+  // Only keep the token for the current handler invocation
+  if (logContext.events) {
+    logContext.events.on('beforeHandler', () => {
+      clearArray(tokens)
+    })
+  }
+  return (val) => {
+    // Don't handle empty or non-string balues
+    if (!val || typeof val !== 'string') return val
+    // Redact early, or...
+    let token = tokens.find(f => val.includes(f))
+    if (token) return redact(val, token)
+    // match the token
+    let match = val.match(bearerRegex)
+    if (!match) return val
+    let bareToken = match[1]
+    // When not using the handler wrapper, "tokens" grows unbounded
+    // Don't keep more than 5 tokens
+    // Since each token is the full and bare entry, length = 10
+    if (tokens.length > 10) {
+      // Remove the last match-pair
+      tokens.splice(0, 2)
+    }
+    // Store the match pair
+    tokens.push(val, bareToken)
+    return redact(val, match[0])
+  }
 }
 
 // Error Handling
@@ -291,4 +319,8 @@ function hasModuleLoaded (moduleName) {
     if (/Cannot find module/.test(e.toString())) return false
     throw e
   }
+}
+
+function clearArray (arr) {
+  arr.length = 0
 }
