@@ -46,7 +46,7 @@ Simple Lambda handler
 const { Logger } = require('lambda-logger-node')
 const logger = Logger()
 
-exports.handler = logger(handler)
+exports.handler = logger.handler(handler)
 
 async function handler (event, context) {
   // your lambda handler
