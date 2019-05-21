@@ -176,9 +176,9 @@ test('logger registers global error handlers', logTest(async (t, { logs, errors,
 
 test('logger handles error handles in test mode', logTest(async (t, { logs, errors, exits }) => {
   t.plan(1)
-  Logger({ useGlobalErrorHandler: true })
+  Logger({ useGlobalErrorHandler: true, testMode: false })
   try {
-    Logger({ useGlobalErrorHandler: true })
+    Logger({ useGlobalErrorHandler: true, testMode: false })
     t.pass('did not throw on second global handler logger')
   } catch (e) {
     console.log('failed', logs.args)
@@ -232,6 +232,15 @@ test('logger redacts bearer tokens', logTest(async (t, { logs, errors }) => {
   t.notOk(logCall.includes(testToken), 'did not find token')
   t.notOk(logCall.includes(tokenSignature), 'did not find sub token')
   t.notOk(logCall.includes(subSignature), 'did not find sub section')
+}))
+
+test('logger uses TestFormatter in testMode', logTest(async (t, { logs, errors }) => {
+  t.plan(1)
+  let logger = Logger({ useGlobalErrorHandler: false, testMode: true })
+  logger.info('something')
+  let logCall = logs.firstCall.args[0]
+  console.log(logCall)
+  t.equal(logCall, 'INFO something', 'no json')
 }))
 
 test('logger redacts bearer tokens without "bearer"', logTest(async (t, { logs, errors }) => {

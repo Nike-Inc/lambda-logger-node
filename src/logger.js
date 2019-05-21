@@ -37,23 +37,31 @@ module.exports = {
  * @param {Formatter} [JsonFormatter] options.formatter thunk that receives the log context, must return a function to handler formatting log messages. Defaults to JsonFormatter
  * @param {Boolean} [true] options.useBearerRedactor add a Bearer token redactor
  * @param {Boolean} [true] options.useGlobalErrorHandler setup global handlers for uncaughtException and unhandledRejection. Only one logger per-lambda can use this option.
+ * @param {Boolean|undefined} [undefined] options.testMode Override environment checks and force "testMode" to be `true` or `false`. Leave undefined to allow ENV to define test mode.
  * @param {(string|RegExp|RedactorFunction)[]} [[]] options.redactors array of redactors. A Redactor is a string or regex to globally replace, or a user=supplied function that is invoked during the redaction phase.
  * @returns {Logger}
  */
 function Logger ({
   minimumLogLevel = null,
-  formatter = JsonFormatter,
+  formatter,
   useBearerRedactor = true,
   useGlobalErrorHandler = true,
   forceGlobalErrorHandler = false,
-  redactors = []
+  redactors = [],
+  testMode = undefined
 } = {}) {
   const context = {
     minimumLogLevel,
     formatter,
     events: new EventEmitter(),
     contextPath: [],
+    testMode: testMode,
     keys: new Map()
+  }
+  if (!formatter) {
+    context.formatter = isInTestMode(context)
+      ? TestFormatter
+      : JsonFormatter
   }
   if (useBearerRedactor) {
     redactors.push(bearerRedactor(context))
@@ -187,7 +195,7 @@ function JsonFormatter (logContext, severity, ...args) {
   })
   log.message = args.length === 1 ? formatMessageItem(args[0]) : args.map(formatMessageItem).join(' ')
   log.severity = severity
-  let subLogPath = logContext.contextPath.join('.')
+  let subLogPath = getLogPath(logContext)
   log.contextPath = subLogPath || undefined
   // put the un-annotated message first to make cloudwatch viewing easier
   // include the MDC annotaed message after with log delimiter to enable parsing
@@ -196,6 +204,16 @@ function JsonFormatter (logContext, severity, ...args) {
 
 function withDelimiter (message) {
   return LOG_DELIMITER + message + LOG_DELIMITER
+}
+
+function getLogPath (logContext) {
+  return logContext.contextPath.join('.')
+}
+
+function TestFormatter (logContext, severity, ...args) {
+  let subLogPath = getLogPath(logContext)
+  let message = args.length === 1 ? formatMessageItem(args[0]) : args.map(formatMessageItem).join(' ')
+  return `${severity}${subLogPath ? ` ${subLogPath} ` : ' '}${message}`
 }
 
 // Redaction
@@ -249,7 +267,7 @@ function bearerRedactor (logContext) {
 //
 
 function registerErrorHandlers (logContext, force) {
-  if (!force && isInTestMode()) {
+  if (!force && isInTestMode(logContext)) {
     return
   }
   clearLambdaExceptionHandlers()
@@ -302,7 +320,10 @@ function isPromise (promise) {
   return promise && promise.then !== undefined && typeof promise.then === 'function'
 }
 
-function isInTestMode () {
+function isInTestMode (logContext) {
+  // Override with context
+  if (logContext.testMode !== false) return logContext.testMode
+  // Check environment
   let isMocha = global.it !== undefined
   let isJest = global.jest !== undefined
   let isTape = hasModuleLoaded('tape')
