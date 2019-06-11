@@ -12,9 +12,9 @@ const { replaceAll } = require('../src/strings')
 // but we can take advantage of the native node runtime using both for Console
 const rewire = require('rewire')
 const logModule = rewire('../src/logger')
-const fakeConsole = { log: () => {}, error: () => {} }
+const fakeConsole = { log: () => null, error: () => null }
 const fakeProcess = new EventEmitter()
-fakeProcess.exit = () => {}
+fakeProcess.exit = () => null
 fakeProcess.stdout = {
   write: console.log.bind(console)
 }
@@ -43,11 +43,11 @@ test('Logger returns logger', t => {
   t.end()
 })
 
-test.skip(
+test(
   'logger writes info to console',
   logTest(async (t, { logs }) => {
     t.plan(3)
-    let logger = Logger({ useGlobalErrorHandler: false })
+    let logger = Logger({ useGlobalErrorHandler: false, testMode: false })
     logger.info('test')
     logger.debug('bug')
     let logCall = logs.firstCall.args[0]
@@ -61,7 +61,7 @@ test(
   'logger stringifies objects',
   logTest(async (t, { logs }) => {
     t.plan(1)
-    let logger = Logger({ useGlobalErrorHandler: false })
+    let logger = Logger({ useGlobalErrorHandler: false, testMode: false })
     let message = { name: 'tim', sub: { age: 30, sub2: { thing: 'stuff' } } }
     message.circ = message
     logger.info(message)
@@ -83,7 +83,7 @@ test(
   'logger includes detailed message',
   logTest(async (t, { logs }) => {
     t.plan(3)
-    let logger = Logger({ useGlobalErrorHandler: false })
+    let logger = Logger({ useGlobalErrorHandler: false, testMode: false })
     logger.setKey('detail', 'value')
     logger.info('message')
     let logCall = logs.firstCall.args[0]
@@ -102,7 +102,7 @@ test(
 test(
   'logger sets standard mdc keys for handler',
   logTest(async (t, { logs }) => {
-    let logger = Logger({ useGlobalErrorHandler: false })
+    let logger = Logger({ useGlobalErrorHandler: false, testMode: false })
 
     await logger.handler(async () => {
       logger.setKey('detail', 'value')
@@ -137,7 +137,7 @@ test(
 test(
   'logger suppress messages below minimum severity',
   logTest(async (t, { logs }) => {
-    let logger = Logger({ useGlobalErrorHandler: false })
+    let logger = Logger({ useGlobalErrorHandler: false, testMode: false })
     logger.setMinimumLogLevel('INFO')
     logger.debug('skip')
     logger.info('include')
@@ -151,7 +151,7 @@ test(
 test(
   'logger suppress messages below minimum severity for errors',
   logTest(async (t, { logs, errors }) => {
-    let logger = Logger({ useGlobalErrorHandler: false })
+    let logger = Logger({ useGlobalErrorHandler: false, testMode: false })
     logger.setMinimumLogLevel('WARN')
     logger.info('skip')
     logger.warn('include')
@@ -169,7 +169,7 @@ test(
   'sub-logger writes info to console',
   logTest(async (t, { logs }) => {
     t.plan(4)
-    let logger = Logger({ useGlobalErrorHandler: false })
+    let logger = Logger({ useGlobalErrorHandler: false, testMode: false })
     logger.setKey('detail', 'value')
     let sub = logger.createSubLogger('db')
     sub.info('sub message')
@@ -191,7 +191,7 @@ test(
   'sub-logger respects parent minimum log level',
   logTest(async (t, { logs, errors }) => {
     t.plan(5)
-    let logger = Logger({ useGlobalErrorHandler: false })
+    let logger = Logger({ useGlobalErrorHandler: false, testMode: false })
     logger.setMinimumLogLevel('WARN')
     logger.setKey('detail', 'value')
     let sub = logger.createSubLogger('db')
@@ -246,9 +246,9 @@ test(
   'logger handles error handles in test mode',
   logTest(async (t, { logs }) => {
     t.plan(1)
-    Logger({ useGlobalErrorHandler: true, testMode: false })
+    Logger({ useGlobalErrorHandler: true, testMode: true })
     try {
-      Logger({ useGlobalErrorHandler: true, testMode: false })
+      Logger({ useGlobalErrorHandler: true, testMode: true })
       t.pass('did not throw on second global handler logger')
     } catch (e) {
       console.log('failed', logs.args)
@@ -262,7 +262,7 @@ test(
   'logger triggers beforeHandler events',
   logTest(async t => {
     t.plan(3)
-    let logger = Logger({ useGlobalErrorHandler: false })
+    let logger = Logger({ useGlobalErrorHandler: false, testMode: false })
 
     let calledHook = false
     logger.events.on('beforeHandler', (event, context) => {
@@ -280,7 +280,7 @@ test(
 test(
   'logger errors if handler is not async',
   logTest(async t => {
-    let logger = Logger({ useGlobalErrorHandler: false })
+    let logger = Logger({ useGlobalErrorHandler: false, testMode: false })
 
     try {
       await logger.handler(() => {
@@ -303,7 +303,7 @@ test(
 test(
   'logger throws if setting reserved key',
   logTest(async t => {
-    let logger = Logger({ useGlobalErrorHandler: false })
+    let logger = Logger({ useGlobalErrorHandler: false, testMode: false })
 
     t.throws(() => logger.setKey('message', 'test'), /reserved/, 'got error')
   })
