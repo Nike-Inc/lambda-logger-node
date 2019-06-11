@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 'use strict'
 
 /*
@@ -41,7 +42,7 @@ module.exports = {
  * @param {(string|RegExp|RedactorFunction)[]} [[]] options.redactors array of redactors. A Redactor is a string or regex to globally replace, or a user=supplied function that is invoked during the redaction phase.
  * @returns {Logger}
  */
-function Logger ({
+function Logger({
   minimumLogLevel = null,
   formatter,
   useBearerRedactor = true,
@@ -55,13 +56,11 @@ function Logger ({
     formatter,
     events: new EventEmitter(),
     contextPath: [],
-    testMode: testMode,
+    testMode,
     keys: new Map()
   }
   if (!formatter) {
-    context.formatter = isInTestMode(context)
-      ? TestFormatter
-      : JsonFormatter
+    context.formatter = isInTestMode(context) ? TestFormatter : JsonFormatter
   }
   if (useBearerRedactor) {
     redactors.push(bearerRedactor(context))
@@ -82,7 +81,7 @@ function Logger ({
   return context.logger
 }
 
-function createLogger (logContext) {
+function createLogger(logContext) {
   let severityLog = wrapLog(logContext)
   return {
     createSubLogger: wrapSubLogger(logContext),
@@ -93,19 +92,20 @@ function createLogger (logContext) {
   }
 }
 
-function wrapSubLogger (logContext) {
-  return (subLoggerName) => createLogger({
-    ...logContext,
-    // Reference parent's minimumLogLevel so that it cascades down
-    get minimumLogLevel () {
-      return logContext.minimumLogLevel
-    },
-    contextPath: [...logContext.contextPath, subLoggerName],
-    logger: undefined
-  })
+function wrapSubLogger(logContext) {
+  return subLoggerName =>
+    createLogger({
+      ...logContext,
+      // Reference parent's minimumLogLevel so that it cascades down
+      get minimumLogLevel() {
+        return logContext.minimumLogLevel
+      },
+      contextPath: [...logContext.contextPath, subLoggerName],
+      logger: undefined
+    })
 }
 
-function wrapHandler (logContext) {
+function wrapHandler(logContext) {
   return handler => async (lambdaEvent, lambdaContext) => {
     // Create initial values from context
     setMdcKeys(logContext, lambdaEvent, lambdaContext)
@@ -113,19 +113,22 @@ function wrapHandler (logContext) {
     // Attach logger to context
     lambdaContext.logger = logContext.logger
 
-    if (logContext.events) logContext.events.emit('beforeHandler', lambdaEvent, lambdaContext)
+    if (logContext.events)
+      logContext.events.emit('beforeHandler', lambdaEvent, lambdaContext)
 
     let result = handler(lambdaEvent, lambdaContext)
     if (!isPromise(result)) {
       // log the error first
-      throw new Error('Logger wrapped a handler function that did not return a promise. Lambda logger only supports async handlers.')
+      throw new Error(
+        'Logger wrapped a handler function that did not return a promise. Lambda logger only supports async handlers.'
+      )
     }
     return result
   }
 }
 
 const reservedKeys = ['message', 'severity']
-function wrapSetKey (logContext) {
+function wrapSetKey(logContext) {
   return (key, value) => {
     if (reservedKeys.includes(key)) {
       throw new Error(`"${key}" is a reserved logger key.`)
@@ -134,22 +137,30 @@ function wrapSetKey (logContext) {
   }
 }
 
-function setMdcKeys (logContext, lambdaEvent, lambdaContext) {
+function setMdcKeys(logContext, lambdaEvent, lambdaContext) {
   let traceIndex = 0
 
   logContext.logger.setKey('traceId', lambdaContext.awsRequestId)
   logContext.logger.setKey('date', getFormattedDate)
   logContext.logger.setKey('appName', lambdaContext.functionName)
   logContext.logger.setKey('version', lambdaContext.functionVersion)
-  logContext.logger.setKey('apigTraceId', (lambdaEvent && lambdaEvent.requestContext && lambdaEvent.requestContext.requestId) || (lambdaContext && lambdaContext.requestContext && lambdaContext.requestContext.requestId))
+  logContext.logger.setKey(
+    'apigTraceId',
+    (lambdaEvent &&
+      lambdaEvent.requestContext &&
+      lambdaEvent.requestContext.requestId) ||
+      (lambdaContext &&
+        lambdaContext.requestContext &&
+        lambdaContext.requestContext.requestId)
+  )
   logContext.logger.setKey('traceIndex', () => traceIndex++)
 }
 
-function wrapLog (logContext) {
+function wrapLog(logContext) {
   return severity => (...args) => writeLog(logContext, severity, ...args)
 }
 
-function writeLog (logContext, severity, ...args) {
+function writeLog(logContext, severity, ...args) {
   if (!canLogSeverity(logContext, severity)) return
   let logMessage = getLogMessage(logContext, severity, ...args)
 
@@ -165,16 +176,21 @@ function writeLog (logContext, severity, ...args) {
   }
 }
 
-function getLogMessage (logContext, severity, ...args) {
+function getLogMessage(logContext, severity, ...args) {
   return logContext.redact(logContext.formatter(logContext, severity, ...args))
 }
 
-function canLogSeverity (logContext, severity) {
-  if (logLevels.indexOf(severity) === -1) throw new Error('Unable to log, illegal severity: ' + severity)
-  return !(logContext.minimumLogLevel && severity && logLevels.indexOf(severity) < logLevels.indexOf(logContext.minimumLogLevel))
+function canLogSeverity(logContext, severity) {
+  if (logLevels.indexOf(severity) === -1)
+    throw new Error('Unable to log, illegal severity: ' + severity)
+  return !(
+    logContext.minimumLogLevel &&
+    severity &&
+    logLevels.indexOf(severity) < logLevels.indexOf(logContext.minimumLogLevel)
+  )
 }
 
-function wrapSetMinimumLogLevel (logContext) {
+function wrapSetMinimumLogLevel(logContext) {
   return level => {
     if (logLevels.indexOf(level) === -1) {
       throw new Error('Illegal log level value: ' + level)
@@ -183,55 +199,63 @@ function wrapSetMinimumLogLevel (logContext) {
   }
 }
 
-function formatMessageItem (message) {
+function formatMessageItem(message) {
   if (typeof message === 'string') return message
   return jsonify(message, null, 2)
 }
 
-function JsonFormatter (logContext, severity, ...args) {
+function JsonFormatter(logContext, severity, ...args) {
   let log = {}
   logContext.keys.forEach((value, key) => {
     log[key] = typeof value === 'function' ? value() : value
   })
-  log.message = args.length === 1 ? formatMessageItem(args[0]) : args.map(formatMessageItem).join(' ')
+  log.message =
+    args.length === 1
+      ? formatMessageItem(args[0])
+      : args.map(formatMessageItem).join(' ')
   log.severity = severity
   let subLogPath = getLogPath(logContext)
   log.contextPath = subLogPath || undefined
   // put the un-annotated message first to make cloudwatch viewing easier
   // include the MDC annotaed message after with log delimiter to enable parsing
-  return `${severity}${subLogPath ? ` ${subLogPath} ` : ' '}${log.message} |\n ${withDelimiter(jsonify(log))}`
+  return `${severity}${subLogPath ? ` ${subLogPath} ` : ' '}${
+    log.message
+  } |\n ${withDelimiter(jsonify(log))}`
 }
 
-function withDelimiter (message) {
+function withDelimiter(message) {
   return LOG_DELIMITER + message + LOG_DELIMITER
 }
 
-function getLogPath (logContext) {
+function getLogPath(logContext) {
   return logContext.contextPath.join('.')
 }
 
-function TestFormatter (logContext, severity, ...args) {
+function TestFormatter(logContext, severity, ...args) {
   let subLogPath = getLogPath(logContext)
-  let message = args.length === 1 ? formatMessageItem(args[0]) : args.map(formatMessageItem).join(' ')
+  let message =
+    args.length === 1
+      ? formatMessageItem(args[0])
+      : args.map(formatMessageItem).join(' ')
   return `${severity}${subLogPath ? ` ${subLogPath} ` : ' '}${message}`
 }
 
 // Redaction
 //
 
-function wrapRedact (logContext, redactors) {
+function wrapRedact(logContext, redactors) {
   logContext.redactors = redactors.map(redactor => {
     if (typeof redactor === 'string') return stringRedactor(redactor)
     else if (redactor instanceof RegExp) return regexRedactor(redactor)
     else if (typeof redactor === 'function') return redactor
-    else {
-      throw new Error(`Redactor type not supported: ${redactor}`)
-    }
+
+    throw new Error(`Redactor type not supported: ${redactor}`)
   })
-  return (value) => logContext.redactors.reduce((val, redactor) => redactor(val), value)
+  return value =>
+    logContext.redactors.reduce((val, redactor) => redactor(val), value)
 }
 
-function bearerRedactor (logContext) {
+function bearerRedactor(logContext) {
   const tokens = []
   const bearerRegex = /Bearer ([A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]*)/ // eslint-disable-line no-useless-escape
   // Only keep the token for the current handler invocation
@@ -240,7 +264,7 @@ function bearerRedactor (logContext) {
       clearArray(tokens)
     })
   }
-  return (val) => {
+  return val => {
     // Don't handle empty or non-string balues
     if (!val || typeof val !== 'string') return val
     // Redact early, or...
@@ -266,17 +290,24 @@ function bearerRedactor (logContext) {
 // Error Handling
 //
 
-function registerErrorHandlers (logContext, force) {
+function registerErrorHandlers(logContext, force) {
   if (!force && isInTestMode(logContext)) {
     return
   }
   clearLambdaExceptionHandlers()
   logContext.globalErrorHandler = (err, promise) => {
     if (promise) {
-      logContext.logger.error('unhandled rejection (this should never happen!)', err.stack)
+      logContext.logger.error(
+        'unhandled rejection (this should never happen!)',
+        err.stack
+      )
     } else {
-      logContext.logger.error('uncaught exception (this should never happen!)', err.stack)
+      logContext.logger.error(
+        'uncaught exception (this should never happen!)',
+        err.stack
+      )
     }
+    // eslint-disable-next-line no-process-exit
     process.exit(1)
   }
   process.on('uncaughtException', logContext.globalErrorHandler)
@@ -284,9 +315,11 @@ function registerErrorHandlers (logContext, force) {
 }
 
 let hasAlreadyClearedLambdaHandlers = false
-function clearLambdaExceptionHandlers () {
+function clearLambdaExceptionHandlers() {
   if (hasAlreadyClearedLambdaHandlers) {
-    throw new Error('tried to setup global handlers twice. You cannot contrusct two Loggers with "useGlobalErrorHandler"')
+    throw new Error(
+      'tried to setup global handlers twice. You cannot contrusct two Loggers with "useGlobalErrorHandler"'
+    )
   }
   const assert = require('assert')
   // Taken from: https://gist.github.com/twolfson/855a823cfbd62d4c7405a38105c23fd3
@@ -301,39 +334,52 @@ function clearLambdaExceptionHandlers () {
 
 // Utilities
 
-function pad (n) { return n < 10 ? '0' + n : n }
+function pad(n) {
+  return n < 10 ? '0' + n : n
+}
 
-function getFormattedDate () {
+function getFormattedDate() {
   return formatRfc3339(new Date(Date.now()))
 }
 
-function formatRfc3339 (d) {
-  return d.getUTCFullYear() + '-' +
-    pad(d.getUTCMonth() + 1) + '-' +
-    pad(d.getUTCDate()) + 'T' +
-    pad(d.getUTCHours()) + ':' +
-    pad(d.getUTCMinutes()) + ':' +
-    pad(d.getUTCSeconds()) + 'Z'
+function formatRfc3339(d) {
+  return (
+    d.getUTCFullYear() +
+    '-' +
+    pad(d.getUTCMonth() + 1) +
+    '-' +
+    pad(d.getUTCDate()) +
+    'T' +
+    pad(d.getUTCHours()) +
+    ':' +
+    pad(d.getUTCMinutes()) +
+    ':' +
+    pad(d.getUTCSeconds()) +
+    'Z'
+  )
 }
 
-function isPromise (promise) {
-  return promise && promise.then !== undefined && typeof promise.then === 'function'
+function isPromise(promise) {
+  return (
+    promise && promise.then !== undefined && typeof promise.then === 'function'
+  )
 }
 
-function isInTestMode (logContext) {
+function isInTestMode(logContext) {
   // Override with context
-  if (logContext.testMode !== false) return logContext.testMode
+  if (logContext.testMode !== undefined) return logContext.testMode
   // Check environment
   let isMocha = global.it !== undefined
   let isJest = global.jest !== undefined
   let isTape = hasModuleLoaded('tape')
   // console.log('has tape loaded', isTape)
-  let env = process.env.TEST || process.env.test || process.env.ci || process.env.CI
+  let env =
+    process.env.TEST || process.env.test || process.env.ci || process.env.CI
   // console.log('load', env, isMocha, isJest, isTape)
   return env || isMocha || isJest || isTape
 }
 
-function hasModuleLoaded (moduleName) {
+function hasModuleLoaded(moduleName) {
   try {
     return !!require.cache[require.resolve(moduleName)]
   } catch (e) {
@@ -342,6 +388,6 @@ function hasModuleLoaded (moduleName) {
   }
 }
 
-function clearArray (arr) {
+function clearArray(arr) {
   arr.length = 0
 }
