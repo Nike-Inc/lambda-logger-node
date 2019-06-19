@@ -348,10 +348,10 @@ test(
       useBearerRedactor: true
     })
     logger.info(`Bearer ${testToken}`)
-    logger.info(testToken)
+    logger.info(`message "${testToken}"`)
     let logCall = logs.secondCall.args[0]
-    // console.log(logCall)
-    t.ok(logCall.includes('INFO --redacted--'), 'got test message')
+    console.log(logCall)
+    t.ok(logCall.includes('INFO message'), 'got test message')
     t.notOk(logCall.includes(testToken), 'did not find token')
     t.notOk(logCall.includes(tokenSignature), 'did not find sub token')
     t.notOk(logCall.includes(subSignature), 'did not find sub section')
