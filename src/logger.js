@@ -327,8 +327,9 @@ function clearLambdaExceptionHandlers() {
   //   uncaughtException listeners = [function (err) { console.error(err.stack); process.exit(1); }]
   //   We remove it so we can catch async errors and report them to Rollbar
   assert.strictEqual(process.listeners('uncaughtException').length, 1)
-  assert.strictEqual(process.listeners('unhandledRejection').length, 0)
+  assert.strictEqual(true, process.listeners('unhandledRejection').length <= 1)
   process.removeAllListeners('uncaughtException')
+  process.removeAllListeners('unhandledRejection')
   hasAlreadyClearedLambdaHandlers = true
 }
 
