@@ -316,7 +316,9 @@ function registerErrorHandlers(logContext, force) {
 
 let hasAlreadyClearedLambdaHandlers = false
 function clearLambdaExceptionHandlers() {
+  process.stdout.write('checking handlers', process.version, '\n')
   if (hasAlreadyClearedLambdaHandlers) {
+    process.stdout.write('throwing\n')
     throw new Error(
       'tried to setup global handlers twice. You cannot contrusct two Loggers with "useGlobalErrorHandler"'
     )
@@ -327,8 +329,12 @@ function clearLambdaExceptionHandlers() {
   //   uncaughtException listeners = [function (err) { console.error(err.stack); process.exit(1); }]
   //   We remove it so we can catch async errors and report them to Rollbar
   assert.strictEqual(process.listeners('uncaughtException').length, 1)
-  assert.strictEqual(process.listeners('unhandledRejection').length, 0)
   process.removeAllListeners('uncaughtException')
+  assert.strictEqual(
+    process.listeners('unhandledRejection').length,
+    getNodeMajorVersion() > 8 ? 1 : 0
+  )
+  process.removeAllListeners('unhandledRejection')
   hasAlreadyClearedLambdaHandlers = true
 }
 
@@ -390,4 +396,10 @@ function hasModuleLoaded(moduleName) {
 
 function clearArray(arr) {
   arr.length = 0
+}
+
+function getNodeMajorVersion() {
+  let version = process.version //v8.8
+  // Skip the "v", convert to number
+  return parseFloat(version.substring(1, version.indexOf('.')))
 }

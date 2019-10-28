@@ -11,13 +11,15 @@ const { replaceAll } = require('../src/strings')
 // The AWS lambda infrastructure does not use process.stdout or process.stderr
 // but we can take advantage of the native node runtime using both for Console
 const rewire = require('rewire')
+const _log = console.log.bind(console)
 const logModule = rewire('../src/logger')
-const fakeConsole = { log: () => null, error: () => null }
+const fakeConsole = { log: _log, error: _log }
 const fakeProcess = new EventEmitter()
 fakeProcess.exit = () => null
 fakeProcess.stdout = {
   write: console.log.bind(console)
 }
+fakeProcess.version = process.version
 fakeProcess.env = {}
 logModule.__set__({
   console: fakeConsole,
@@ -30,6 +32,8 @@ const tokenSignature =
   'nEfPoRPvrL1x6zsNzPWDN14AYV_AG62L0-I6etCGJlZZaOGFMnjBw4FLD-6y30MNdufwweVJ-RHApjDDaPVNQja6K7jaxBmZ1ryWy-JOO1IootRrF3aew5JlE6Q9CQ93I39uHsRCwWiy8tG_rYy7isv8ygz9xnCBRb3NQj7oBChJPvkwvO_DXD4MHde54aXLY6yryuHse-1MuEBXveZmCr6D2cUgHFNXFMwSwazXifHe8tJe2mItRq5l4zSZJQYDexm8Ww5XTwItiQZXV50dMF7F3D2A2tKwqF10CWy3ilw40BOEa3n0ptsDZmD4I3R0711vz_A21z3vYjqjt8pIxw'
 const subSignature =
   'ItRq5l4zSZJQYDexm8Ww5XTwItiQZXV50dMF7F3D2A2tKwqF10CWy3ilw40BOEa3n0ptsDZmD4I3R0711vz_A21z3vYjqjt8pIxw'
+
+process.stdout.write('startup\n')
 
 test('Logger returns logger', t => {
   let logger = Logger({ useGlobalErrorHandler: false })
@@ -212,12 +216,52 @@ test(
   })
 )
 
-test(
-  'logger registers global error handlers',
+test.skip(
+  'logger registers global error handlers for node8',
   logTest(async (t, { errors }) => {
     t.plan(5)
     let fakeLambdaErrorHandler = () => null
+    logModule.__set__('hasAlreadyClearedLambdaHandlers', false)
+    fakeProcess.removeAllListeners('uncaughtException')
+    fakeProcess.removeAllListeners('unhandledRejection')
+    fakeProcess.version = 'v8.10.0'
     fakeProcess.on('uncaughtException', fakeLambdaErrorHandler)
+    process.removeAllListeners('unhandledRejection')
+    Logger({ forceGlobalErrorHandler: true })
+
+    fakeProcess.emit('uncaughtException', { stack: 'fake stack' })
+    fakeProcess.emit('unhandledRejection', { stack: 'fake stack' }, true)
+
+    process.removeAllListeners('uncaughtException')
+    process.removeAllListeners('unhandledRejection')
+
+    let logCall = errors.firstCall.args[0]
+    t.ok(logCall.startsWith('ERROR uncaught exception'), 'got error')
+    t.ok(logCall.includes('fake stack'), 'got error')
+
+    let rejectCall = errors.secondCall.args[0]
+    t.ok(rejectCall.startsWith('ERROR unhandled rejection'), 'got error')
+    t.ok(rejectCall.includes('fake stack'), 'got error')
+
+    t.throws(
+      () => Logger({ forceGlobalErrorHandler: true }),
+      /twice/,
+      'did not allow second global handler logger'
+    )
+  })
+)
+
+test.skip(
+  'logger registers global error handlers node10',
+  logTest(async (t, { errors }) => {
+    t.plan(5)
+    let fakeLambdaErrorHandler = () => null
+    logModule.__set__('hasAlreadyClearedLambdaHandlers', false)
+    fakeProcess.removeAllListeners('uncaughtException')
+    fakeProcess.removeAllListeners('unhandledRejection')
+    fakeProcess.version = 'v10.16.3'
+    fakeProcess.on('uncaughtException', fakeLambdaErrorHandler)
+    fakeProcess.on('unhandledRejection', fakeLambdaErrorHandler)
     Logger({ forceGlobalErrorHandler: true })
 
     fakeProcess.emit('uncaughtException', { stack: 'fake stack' })
@@ -432,3 +476,5 @@ function logTest(testFn) {
     }
   }
 }
+
+process.stdout.write('tests registered\n')
