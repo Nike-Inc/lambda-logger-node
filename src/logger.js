@@ -317,9 +317,7 @@ function registerErrorHandlers(logContext, force) {
 
 let hasAlreadyClearedLambdaHandlers = false
 function clearLambdaExceptionHandlers() {
-  system.process.stdout.write('checking handlers', system.process.version, '\n')
   if (hasAlreadyClearedLambdaHandlers) {
-    system.process.stdout.write('throwing\n')
     throw new Error(
       'tried to setup global handlers twice. You cannot contrusct two Loggers with "useGlobalErrorHandler"'
     )
