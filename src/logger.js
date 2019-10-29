@@ -17,6 +17,7 @@ const { stringRedactor, regexRedactor, redact } = require('./strings')
 
 const logLevels = ['DEBUG', 'INFO', 'WARN', 'ERROR']
 const LOG_DELIMITER = '___$LAMBDA-LOG-TAG$___'
+const system = require('./system')
 
 module.exports = {
   logLevels,
@@ -167,12 +168,12 @@ function writeLog(logContext, severity, ...args) {
   switch (severity) {
     case 'WARN':
     case 'ERROR':
-      console.error(logMessage)
+      system.console.error(logMessage)
       return
     case 'DEBUG':
     case 'INFO':
     default:
-      console.log(logMessage)
+      system.console.log(logMessage)
   }
 }
 
@@ -308,17 +309,17 @@ function registerErrorHandlers(logContext, force) {
       )
     }
     // eslint-disable-next-line no-process-exit
-    process.exit(1)
+    system.process.exit(1)
   }
-  process.on('uncaughtException', logContext.globalErrorHandler)
-  process.on('unhandledRejection', logContext.globalErrorHandler)
+  system.process.on('uncaughtException', logContext.globalErrorHandler)
+  system.process.on('unhandledRejection', logContext.globalErrorHandler)
 }
 
 let hasAlreadyClearedLambdaHandlers = false
 function clearLambdaExceptionHandlers() {
-  process.stdout.write('checking handlers', process.version, '\n')
+  system.process.stdout.write('checking handlers', system.process.version, '\n')
   if (hasAlreadyClearedLambdaHandlers) {
-    process.stdout.write('throwing\n')
+    system.process.stdout.write('throwing\n')
     throw new Error(
       'tried to setup global handlers twice. You cannot contrusct two Loggers with "useGlobalErrorHandler"'
     )
@@ -326,15 +327,15 @@ function clearLambdaExceptionHandlers() {
   const assert = require('assert')
   // Taken from: https://gist.github.com/twolfson/855a823cfbd62d4c7405a38105c23fd3
   // DEV: AWS Lambda's `uncaughtException` handler logs `err.stack` and exits forcefully
-  //   uncaughtException listeners = [function (err) { console.error(err.stack); process.exit(1); }]
+  //   uncaughtException listeners = [function (err) { console.error(err.stack); system.process.exit(1); }]
   //   We remove it so we can catch async errors and report them to Rollbar
-  assert.strictEqual(process.listeners('uncaughtException').length, 1)
-  process.removeAllListeners('uncaughtException')
+  assert.strictEqual(system.process.listeners('uncaughtException').length, 1)
+  system.process.removeAllListeners('uncaughtException')
   assert.strictEqual(
-    process.listeners('unhandledRejection').length,
+    system.process.listeners('unhandledRejection').length,
     getNodeMajorVersion() > 8 ? 1 : 0
   )
-  process.removeAllListeners('unhandledRejection')
+  system.process.removeAllListeners('unhandledRejection')
   hasAlreadyClearedLambdaHandlers = true
 }
 
@@ -380,7 +381,10 @@ function isInTestMode(logContext) {
   let isTape = hasModuleLoaded('tape')
   // console.log('has tape loaded', isTape)
   let env =
-    process.env.TEST || process.env.test || process.env.ci || process.env.CI
+    system.process.env.TEST ||
+    system.process.env.test ||
+    system.process.env.ci ||
+    system.process.env.CI
   // console.log('load', env, isMocha, isJest, isTape)
   return env || isMocha || isJest || isTape
 }
@@ -399,7 +403,7 @@ function clearArray(arr) {
 }
 
 function getNodeMajorVersion() {
-  let version = process.version //v8.8
+  let version = system.process.version //v8.8
   // Skip the "v", convert to number
   return parseFloat(version.substring(1, version.indexOf('.')))
 }

@@ -10,25 +10,51 @@ const { EventEmitter } = require('events')
 const { replaceAll } = require('../src/strings')
 // The AWS lambda infrastructure does not use process.stdout or process.stderr
 // but we can take advantage of the native node runtime using both for Console
-const proxyquire = require('proxyquire')
+const proxyquire = require('proxyquire').noPreserveCache()
 
-const _log = () => {}
-const fakeConsole = { log: _log, error: _log }
-const fakeProcess = new EventEmitter()
+function logTest(testFn) {
+  return async t => {
+    const fakeConsole = {
+      log: stub(),
+      error: stub()
+    }
+    const fakeProcess = new EventEmitter()
 
-fakeProcess.exit = () => null
-fakeProcess.stdout = {
-  write: console.log.bind(console)
+    fakeProcess.exit = stub()
+    fakeProcess.stdout = {
+      write: console.log.bind(console)
+    }
+    fakeProcess.version = process.version
+    fakeProcess.env = {}
+
+    const logModule = proxyquire('../src/logger', {
+      './system': {
+        console: fakeConsole,
+        process: fakeProcess
+      }
+    })
+
+    let logs = fakeConsole.log
+    let errors = fakeConsole.error
+    let exits = fakeProcess.exit
+
+    const { Logger, LOG_DELIMITER } = logModule
+    try {
+      return await testFn(t, {
+        logs,
+        errors,
+        exits,
+        Logger,
+        LOG_DELIMITER,
+        fakeProcess,
+        fakeConsole
+      })
+    } finally {
+      sinon.restore()
+    }
+  }
 }
-fakeProcess.version = process.version
-fakeProcess.env = {}
 
-const logModule = proxyquire('../src/logger', {
-  console: fakeConsole,
-  process: fakeProcess
-})
-
-const { Logger, LOG_DELIMITER } = logModule
 const testToken =
   'eyJraWQiOiIxTkJ3QTJDeWpKRmdDYU5SOXlXZW1jY2ZaaDFjZ19ET1haWXVWcS1oX2RFIiwiYWxnIjoiUlMyNTYifQ.eyJ2ZXIiOjEsImp0aSI6IkFULjV5bFc5ekxBM0xGdkJVVldFY0F3NmdBVkl6SlRaUWJzRTE2S2VEUnpfT3MiLCJpc3MiOiJodHRwczovL25pa2UtcWEub2t0YXByZXZpZXcuY29tL29hdXRoMi9hdXNhMG1jb3JucFpMaTBDNDBoNyIsImF1ZCI6Imh0dHBzOi8vbmlrZS1xYS5va3RhcHJldmlldy5jb20iLCJpYXQiOjE1NTA1MzA5MjYsImV4cCI6MTU1MDUzNDUyNiwiY2lkIjoibmlrZS5uaWtldGVjaC50b2tlbi1nZW5lcmF0b3IiLCJ1aWQiOiIwMHU4Y2F1dGgxczhqN2ZFYjBoNyIsInNjcCI6WyJvcGVuaWQiLCJwcm9maWxlIiwiZW1haWwiXSwic3ViIjoiVGltb3RoeS5LeWVAbmlrZS5jb20iLCJncm91cHMiOlsiQXBwbGljYXRpb24uVVMuRlRFLlVzZXJzIl19.nEfPoRPvrL1x6zsNzPWDN14AYV_AG62L0-I6etCGJlZZaOGFMnjBw4FLD-6y30MNdufwweVJ-RHApjDDaPVNQja6K7jaxBmZ1ryWy-JOO1IootRrF3aew5JlE6Q9CQ93I39uHsRCwWiy8tG_rYy7isv8ygz9xnCBRb3NQj7oBChJPvkwvO_DXD4MHde54aXLY6yryuHse-1MuEBXveZmCr6D2cUgHFNXFMwSwazXifHe8tJe2mItRq5l4zSZJQYDexm8Ww5XTwItiQZXV50dMF7F3D2A2tKwqF10CWy3ilw40BOEa3n0ptsDZmD4I3R0711vz_A21z3vYjqjt8pIxw'
 const tokenSignature =
@@ -36,23 +62,23 @@ const tokenSignature =
 const subSignature =
   'ItRq5l4zSZJQYDexm8Ww5XTwItiQZXV50dMF7F3D2A2tKwqF10CWy3ilw40BOEa3n0ptsDZmD4I3R0711vz_A21z3vYjqjt8pIxw'
 
-process.stdout.write('startup\n')
-
-test('Logger returns logger', t => {
-  let logger = Logger({ useGlobalErrorHandler: false })
-  t.ok('info' in logger, 'has info')
-  t.ok('error' in logger, 'has error')
-  t.ok('warn' in logger, 'has warn')
-  t.ok('debug' in logger, 'has debug')
-  t.ok('handler' in logger, 'has handler')
-  t.ok('setKey' in logger, 'has setKey')
-  t.ok('setMinimumLogLevel' in logger, 'has setMinimumLogLevel')
-  t.end()
-})
+test(
+  'Logger returns logger',
+  logTest(async (t, { Logger }) => {
+    let logger = Logger({ useGlobalErrorHandler: false })
+    t.ok('info' in logger, 'has info')
+    t.ok('error' in logger, 'has error')
+    t.ok('warn' in logger, 'has warn')
+    t.ok('debug' in logger, 'has debug')
+    t.ok('handler' in logger, 'has handler')
+    t.ok('setKey' in logger, 'has setKey')
+    t.ok('setMinimumLogLevel' in logger, 'has setMinimumLogLevel')
+  })
+)
 
 test(
   'logger writes info to console',
-  logTest(async (t, { logs }) => {
+  logTest(async (t, { logs, Logger, LOG_DELIMITER }) => {
     t.plan(3)
     let logger = Logger({ useGlobalErrorHandler: false, testMode: false })
     logger.info('test')
@@ -66,7 +92,7 @@ test(
 
 test(
   'logger stringifies objects',
-  logTest(async (t, { logs }) => {
+  logTest(async (t, { logs, Logger }) => {
     t.plan(1)
     let logger = Logger({ useGlobalErrorHandler: false, testMode: false })
     let message = { name: 'tim', sub: { age: 30, sub2: { thing: 'stuff' } } }
@@ -88,7 +114,7 @@ test(
 
 test(
   'logger includes detailed message',
-  logTest(async (t, { logs }) => {
+  logTest(async (t, { logs, Logger, LOG_DELIMITER }) => {
     t.plan(3)
     let logger = Logger({ useGlobalErrorHandler: false, testMode: false })
     logger.setKey('detail', 'value')
@@ -96,7 +122,7 @@ test(
     let logCall = logs.firstCall.args[0]
     let logMessage = replaceAll(
       logCall.substring(logCall.indexOf('|') + 1),
-      logModule.LOG_DELIMITER,
+      LOG_DELIMITER,
       ''
     )
     logMessage = JSON.parse(logMessage)
@@ -108,7 +134,7 @@ test(
 
 test(
   'logger sets standard mdc keys for handler',
-  logTest(async (t, { logs }) => {
+  logTest(async (t, { logs, Logger, LOG_DELIMITER }) => {
     let logger = Logger({ useGlobalErrorHandler: false, testMode: false })
 
     await logger.handler(async () => {
@@ -127,7 +153,7 @@ test(
     // console.log(logCall)
     let logMessage = replaceAll(
       logCall.substring(logCall.indexOf('|') + 1),
-      logModule.LOG_DELIMITER,
+      LOG_DELIMITER,
       ''
     )
     logMessage = JSON.parse(logMessage)
@@ -143,7 +169,7 @@ test(
 
 test(
   'logger suppress messages below minimum severity',
-  logTest(async (t, { logs }) => {
+  logTest(async (t, { logs, Logger, LOG_DELIMITER }) => {
     let logger = Logger({ useGlobalErrorHandler: false, testMode: false })
     logger.setMinimumLogLevel('INFO')
     logger.debug('skip')
@@ -157,7 +183,7 @@ test(
 
 test(
   'logger suppress messages below minimum severity for errors',
-  logTest(async (t, { logs, errors }) => {
+  logTest(async (t, { logs, Logger, errors, LOG_DELIMITER }) => {
     let logger = Logger({ useGlobalErrorHandler: false, testMode: false })
     logger.setMinimumLogLevel('WARN')
     logger.info('skip')
@@ -174,7 +200,7 @@ test(
 
 test(
   'sub-logger writes info to console',
-  logTest(async (t, { logs }) => {
+  logTest(async (t, { logs, Logger, LOG_DELIMITER }) => {
     t.plan(4)
     let logger = Logger({ useGlobalErrorHandler: false, testMode: false })
     logger.setKey('detail', 'value')
@@ -184,7 +210,7 @@ test(
     t.ok(logCall.startsWith('INFO db sub message'), 'got context prefix')
     let logMessage = replaceAll(
       logCall.substring(logCall.indexOf('|') + 1),
-      logModule.LOG_DELIMITER,
+      LOG_DELIMITER,
       ''
     )
     logMessage = JSON.parse(logMessage)
@@ -196,7 +222,7 @@ test(
 
 test(
   'sub-logger respects parent minimum log level',
-  logTest(async (t, { logs, errors }) => {
+  logTest(async (t, { logs, Logger, errors, LOG_DELIMITER }) => {
     t.plan(5)
     let logger = Logger({ useGlobalErrorHandler: false, testMode: false })
     logger.setMinimumLogLevel('WARN')
@@ -209,7 +235,7 @@ test(
     t.ok(logCall.startsWith('WARN db sub message'), 'got context prefix')
     let logMessage = replaceAll(
       logCall.substring(logCall.indexOf('|') + 1),
-      logModule.LOG_DELIMITER,
+      LOG_DELIMITER,
       ''
     )
     logMessage = JSON.parse(logMessage)
@@ -221,10 +247,9 @@ test(
 
 test.skip(
   'logger registers global error handlers for node8',
-  logTest(async (t, { errors }) => {
+  logTest(async (t, { errors, Logger, fakeProcess }) => {
     t.plan(5)
     let fakeLambdaErrorHandler = () => null
-    logModule.__set__('hasAlreadyClearedLambdaHandlers', false)
     fakeProcess.removeAllListeners('uncaughtException')
     fakeProcess.removeAllListeners('unhandledRejection')
     fakeProcess.version = 'v8.10.0'
@@ -256,10 +281,9 @@ test.skip(
 
 test.skip(
   'logger registers global error handlers node10',
-  logTest(async (t, { errors }) => {
+  logTest(async (t, { Logger, errors, fakeProcess }) => {
     t.plan(5)
     let fakeLambdaErrorHandler = () => null
-    logModule.__set__('hasAlreadyClearedLambdaHandlers', false)
     fakeProcess.removeAllListeners('uncaughtException')
     fakeProcess.removeAllListeners('unhandledRejection')
     fakeProcess.version = 'v10.16.3'
@@ -291,7 +315,7 @@ test.skip(
 
 test(
   'logger handles error handles in test mode',
-  logTest(async (t, { logs }) => {
+  logTest(async (t, { logs, Logger }) => {
     t.plan(1)
     Logger({ useGlobalErrorHandler: true, testMode: true })
     try {
@@ -307,7 +331,7 @@ test(
 
 test(
   'logger triggers beforeHandler events',
-  logTest(async t => {
+  logTest(async (t, { Logger }) => {
     t.plan(3)
     let logger = Logger({ useGlobalErrorHandler: false, testMode: false })
 
@@ -326,7 +350,7 @@ test(
 
 test(
   'logger errors if handler is not async',
-  logTest(async t => {
+  logTest(async (t, { Logger }) => {
     let logger = Logger({ useGlobalErrorHandler: false, testMode: false })
 
     try {
@@ -349,34 +373,34 @@ test(
 
 test(
   'logger throws if setting reserved key',
-  logTest(async t => {
+  logTest(async (t, { Logger }) => {
     let logger = Logger({ useGlobalErrorHandler: false, testMode: false })
 
     t.throws(() => logger.setKey('message', 'test'), /reserved/, 'got error')
   })
 )
 
-test.only(
+test(
   'logger redacts bearer tokens',
-  logTest(async (t, { logs }) => {
+  logTest(async (t, { logs, Logger }) => {
     // t.plan(4)
     let logger = Logger({
       useGlobalErrorHandler: false,
       useBearerRedactor: true
     })
     logger.info(`Bearer ${testToken}`)
-    console.log(logs)
-    // let logCall = logs.firstCall.args[0]
-    // t.ok(logCall.includes('INFO --redacted--'), 'got test message')
-    // t.notOk(logCall.includes(testToken), 'did not find token')
-    // t.notOk(logCall.includes(tokenSignature), 'did not find sub token')
-    // t.notOk(logCall.includes(subSignature), 'did not find sub section')
+    // console.log(logs.callCount)
+    let logCall = logs.firstCall.args[0]
+    t.ok(logCall.includes('INFO --redacted--'), 'got test message')
+    t.notOk(logCall.includes(testToken), 'did not find token')
+    t.notOk(logCall.includes(tokenSignature), 'did not find sub token')
+    t.notOk(logCall.includes(subSignature), 'did not find sub section')
   })
 )
 
 test(
   'logger uses TestFormatter in testMode',
-  logTest(async (t, { logs }) => {
+  logTest(async (t, { logs, Logger }) => {
     t.plan(1)
     let logger = Logger({ useGlobalErrorHandler: false, testMode: true })
     logger.info('something')
@@ -388,7 +412,7 @@ test(
 
 test(
   'logger redacts bearer tokens without "bearer"',
-  logTest(async (t, { logs }) => {
+  logTest(async (t, { logs, Logger }) => {
     t.plan(4)
     let logger = Logger({
       useGlobalErrorHandler: false,
@@ -407,7 +431,7 @@ test(
 
 test(
   'logger redacts bearer tokens in JSON',
-  logTest(async (t, { logs }) => {
+  logTest(async (t, { logs, Logger }) => {
     t.plan(4)
     let logger = Logger({
       useGlobalErrorHandler: false,
@@ -427,7 +451,7 @@ test(
 
 test(
   'logger redacts bearer tokens in object',
-  logTest(async (t, { logs }) => {
+  logTest(async (t, { logs, Logger }) => {
     t.plan(4)
     let logger = Logger({
       useGlobalErrorHandler: false,
@@ -445,7 +469,7 @@ test(
 
 test(
   'logger uses redactors',
-  logTest(async (t, { logs }) => {
+  logTest(async (t, { logs, Logger }) => {
     t.plan(1)
     let logger = Logger({
       useGlobalErrorHandler: false,
@@ -463,21 +487,3 @@ test(
     )
   })
 )
-
-function logTest(testFn) {
-  return async t => {
-    let logs = stub(fakeConsole, 'log').callsFake(() => {
-      // Enable for debugging
-      // console.log('module log', ...args)
-    })
-    let errors = stub(fakeConsole, 'error')
-    let exits = stub(fakeProcess, 'exit')
-    try {
-      return await testFn(t, { logs, errors, exits })
-    } finally {
-      sinon.restore()
-    }
-  }
-}
-
-process.stdout.write('tests registered\n')
