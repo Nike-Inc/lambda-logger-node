@@ -39,7 +39,7 @@
     "proxyquire": "^2.1.3"
   },
   "devDependencies": {
-    "@nike/eslint-config-sprockets": "^1.0.6",
+    "@kyeotic/eslint-config": "^1.0.2",
     "babel-eslint": "^10.0.1",
     "blue-tape": "^1.0.0",
     "chokidar-cli": "^1.2.1",
@@ -56,7 +56,7 @@
   },
   "eslintConfig": {
     "extends": [
-      "@nike/eslint-config-sprockets/node"
+      "@kyeotic/eslint-config/node"
     ]
   }
 }
