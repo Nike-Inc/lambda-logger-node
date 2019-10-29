@@ -3,7 +3,7 @@ jobs:
   build:
     working_directory: ~/app
     docker:
-      - image: nikengp/node8:v0.3
+      - image: nikengp/node10:v0.1
     steps:
       - checkout
       - restore_cache:
