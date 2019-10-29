@@ -245,7 +245,7 @@ test(
   })
 )
 
-test.skip(
+test(
   'logger registers global error handlers for node8',
   logTest(async (t, { errors, Logger, fakeProcess }) => {
     t.plan(5)
@@ -279,7 +279,7 @@ test.skip(
   })
 )
 
-test.skip(
+test(
   'logger registers global error handlers node10',
   logTest(async (t, { Logger, errors, fakeProcess }) => {
     t.plan(5)
