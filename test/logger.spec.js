@@ -10,21 +10,24 @@ const { EventEmitter } = require('events')
 const { replaceAll } = require('../src/strings')
 // The AWS lambda infrastructure does not use process.stdout or process.stderr
 // but we can take advantage of the native node runtime using both for Console
-const rewire = require('rewire')
-const _log = console.log.bind(console)
-const logModule = rewire('../src/logger')
+const proxyquire = require('proxyquire')
+
+const _log = () => {}
 const fakeConsole = { log: _log, error: _log }
 const fakeProcess = new EventEmitter()
+
 fakeProcess.exit = () => null
 fakeProcess.stdout = {
   write: console.log.bind(console)
 }
 fakeProcess.version = process.version
 fakeProcess.env = {}
-logModule.__set__({
+
+const logModule = proxyquire('../src/logger', {
   console: fakeConsole,
   process: fakeProcess
 })
+
 const { Logger, LOG_DELIMITER } = logModule
 const testToken =
   'eyJraWQiOiIxTkJ3QTJDeWpKRmdDYU5SOXlXZW1jY2ZaaDFjZ19ET1haWXVWcS1oX2RFIiwiYWxnIjoiUlMyNTYifQ.eyJ2ZXIiOjEsImp0aSI6IkFULjV5bFc5ekxBM0xGdkJVVldFY0F3NmdBVkl6SlRaUWJzRTE2S2VEUnpfT3MiLCJpc3MiOiJodHRwczovL25pa2UtcWEub2t0YXByZXZpZXcuY29tL29hdXRoMi9hdXNhMG1jb3JucFpMaTBDNDBoNyIsImF1ZCI6Imh0dHBzOi8vbmlrZS1xYS5va3RhcHJldmlldy5jb20iLCJpYXQiOjE1NTA1MzA5MjYsImV4cCI6MTU1MDUzNDUyNiwiY2lkIjoibmlrZS5uaWtldGVjaC50b2tlbi1nZW5lcmF0b3IiLCJ1aWQiOiIwMHU4Y2F1dGgxczhqN2ZFYjBoNyIsInNjcCI6WyJvcGVuaWQiLCJwcm9maWxlIiwiZW1haWwiXSwic3ViIjoiVGltb3RoeS5LeWVAbmlrZS5jb20iLCJncm91cHMiOlsiQXBwbGljYXRpb24uVVMuRlRFLlVzZXJzIl19.nEfPoRPvrL1x6zsNzPWDN14AYV_AG62L0-I6etCGJlZZaOGFMnjBw4FLD-6y30MNdufwweVJ-RHApjDDaPVNQja6K7jaxBmZ1ryWy-JOO1IootRrF3aew5JlE6Q9CQ93I39uHsRCwWiy8tG_rYy7isv8ygz9xnCBRb3NQj7oBChJPvkwvO_DXD4MHde54aXLY6yryuHse-1MuEBXveZmCr6D2cUgHFNXFMwSwazXifHe8tJe2mItRq5l4zSZJQYDexm8Ww5XTwItiQZXV50dMF7F3D2A2tKwqF10CWy3ilw40BOEa3n0ptsDZmD4I3R0711vz_A21z3vYjqjt8pIxw'
@@ -353,21 +356,21 @@ test(
   })
 )
 
-test(
+test.only(
   'logger redacts bearer tokens',
   logTest(async (t, { logs }) => {
-    t.plan(4)
+    // t.plan(4)
     let logger = Logger({
       useGlobalErrorHandler: false,
       useBearerRedactor: true
     })
     logger.info(`Bearer ${testToken}`)
-    let logCall = logs.firstCall.args[0]
-    // console.log(logCall)
-    t.ok(logCall.includes('INFO --redacted--'), 'got test message')
-    t.notOk(logCall.includes(testToken), 'did not find token')
-    t.notOk(logCall.includes(tokenSignature), 'did not find sub token')
-    t.notOk(logCall.includes(subSignature), 'did not find sub section')
+    console.log(logs)
+    // let logCall = logs.firstCall.args[0]
+    // t.ok(logCall.includes('INFO --redacted--'), 'got test message')
+    // t.notOk(logCall.includes(testToken), 'did not find token')
+    // t.notOk(logCall.includes(tokenSignature), 'did not find sub token')
+    // t.notOk(logCall.includes(subSignature), 'did not find sub section')
   })
 )
 
