@@ -318,7 +318,7 @@ let hasAlreadyClearedLambdaHandlers = false
 function clearLambdaExceptionHandlers() {
   if (hasAlreadyClearedLambdaHandlers) {
     throw new Error(
-      'tried to setup global handlers twice. You cannot contrusct two Loggers with "useGlobalErrorHandler"'
+      'tried to setup global handlers twice. You cannot construct two Loggers with "useGlobalErrorHandler"'
     )
   }
   const assert = require('assert')
@@ -327,13 +327,29 @@ function clearLambdaExceptionHandlers() {
   //   uncaughtException listeners = [function (err) { console.error(err.stack); process.exit(1); }]
   //   We remove it so we can catch async errors and report them to Rollbar
   assert.strictEqual(process.listeners('uncaughtException').length, 1)
-  assert.strictEqual(true, process.listeners('unhandledRejection').length <= 1)
+
+  const majorVersion = nodeMajorVersion()
+
+  if (majorVersion <= 8) {
+    assert.strictEqual(process.listeners('unhandledRejection').length, 0)
+  } else {
+    assert.strictEqual(process.listeners('unhandledRejection').length, 1)
+  }
+
   process.removeAllListeners('uncaughtException')
   process.removeAllListeners('unhandledRejection')
   hasAlreadyClearedLambdaHandlers = true
 }
 
 // Utilities
+
+function nodeMajorVersion() {
+  const version = process.version
+  const majorVersionRegex = /(\d+)\..+/
+  const majorVersionMatch = majorVersionRegex.exec(version)
+
+  return majorVersionMatch[1]
+}
 
 function pad(n) {
   return n < 10 ? '0' + n : n

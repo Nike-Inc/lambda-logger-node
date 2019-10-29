@@ -213,18 +213,59 @@ test(
 )
 
 test(
-  'logger registers global error handlers',
+  'logger registers global error handlers in node 8',
   logTest(async (t, { errors }) => {
     t.plan(5)
     let fakeLambdaErrorHandler = () => null
+
+    logModule.__set__('hasAlreadyClearedLambdaHandlers', false)
+
+    fakeProcess.version = '8.10.0'
     fakeProcess.on('uncaughtException', fakeLambdaErrorHandler)
+
     Logger({ forceGlobalErrorHandler: true })
 
     fakeProcess.emit('uncaughtException', { stack: 'fake stack' })
     fakeProcess.emit('unhandledRejection', { stack: 'fake stack' }, true)
 
-    process.removeAllListeners('uncaughtException')
-    process.removeAllListeners('unhandledRejection')
+    fakeProcess.removeAllListeners('uncaughtException')
+    fakeProcess.removeAllListeners('unhandledRejection')
+
+    let logCall = errors.firstCall.args[0]
+    t.ok(logCall.startsWith('ERROR uncaught exception'), 'got error')
+    t.ok(logCall.includes('fake stack'), 'got error')
+
+    let rejectCall = errors.secondCall.args[0]
+    t.ok(rejectCall.startsWith('ERROR unhandled rejection'), 'got error')
+    t.ok(rejectCall.includes('fake stack'), 'got error')
+
+    t.throws(
+      () => Logger({ forceGlobalErrorHandler: true }),
+      /twice/,
+      'did not allow second global handler logger'
+    )
+  })
+)
+
+test(
+  'logger registers global error handlers in node 10',
+  logTest(async (t, { errors }) => {
+    t.plan(5)
+    let fakeLambdaErrorHandler = () => null
+
+    logModule.__set__('hasAlreadyClearedLambdaHandlers', false)
+
+    fakeProcess.version = '10.1.0'
+    fakeProcess.on('uncaughtException', fakeLambdaErrorHandler)
+    fakeProcess.on('unhandledRejection', fakeLambdaErrorHandler)
+
+    Logger({ forceGlobalErrorHandler: true })
+
+    fakeProcess.emit('uncaughtException', { stack: 'fake stack' })
+    fakeProcess.emit('unhandledRejection', { stack: 'fake stack' }, true)
+
+    fakeProcess.removeAllListeners('uncaughtException')
+    fakeProcess.removeAllListeners('unhandledRejection')
 
     let logCall = errors.firstCall.args[0]
     t.ok(logCall.startsWith('ERROR uncaught exception'), 'got error')
