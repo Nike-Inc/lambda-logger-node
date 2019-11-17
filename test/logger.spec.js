@@ -248,7 +248,7 @@ test(
 
 test(
   'sub-logger respects parent minimum log level',
-  logTest(async (t, { logs, warns, Logger, errors, LOG_DELIMITER }) => {
+  logTest(async (t, { logs, warns, Logger, LOG_DELIMITER }) => {
     t.plan(5)
     let logger = Logger({ useGlobalErrorHandler: false, testMode: false })
     logger.setMinimumLogLevel('WARN')
@@ -311,7 +311,7 @@ test(
   'logger registers global error handlers node10',
   logTest(
     { lambdaPrepends: false, listeners: 1 },
-    async (t, { logs, Logger, errors, fakeProcess }) => {
+    async (t, { Logger, errors, fakeProcess }) => {
       t.plan(5)
       let fakeLambdaErrorHandler = () => null
       fakeProcess.removeAllListeners('uncaughtException')
