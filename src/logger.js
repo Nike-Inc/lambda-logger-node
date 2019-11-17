@@ -19,6 +19,11 @@ const logLevels = ['DEBUG', 'INFO', 'WARN', 'ERROR']
 const LOG_DELIMITER = '___$LAMBDA-LOG-TAG$___'
 const system = require('./system')
 
+const {
+  UNHANDLED_REJECTION_LISTENERS,
+  LAMBDA_PREPENDS_SEVERITY
+} = require('./config')
+
 module.exports = {
   logLevels,
   LOG_DELIMITER,
@@ -167,10 +172,14 @@ function writeLog(logContext, severity, ...args) {
 
   switch (severity) {
     case 'WARN':
+      system.console.warn(logMessage)
+      return
     case 'ERROR':
       system.console.error(logMessage)
       return
     case 'DEBUG':
+      system.console.debug(logMessage)
+      return
     case 'INFO':
     default:
       system.console.log(logMessage)
@@ -215,11 +224,12 @@ function JsonFormatter(logContext, severity, ...args) {
       ? formatMessageItem(args[0])
       : args.map(formatMessageItem).join(' ')
   log.severity = severity
+  let logPrefix = LAMBDA_PREPENDS_SEVERITY ? '' : severity
   let subLogPath = getLogPath(logContext)
   log.contextPath = subLogPath || undefined
   // put the un-annotated message first to make cloudwatch viewing easier
   // include the MDC annotaed message after with log delimiter to enable parsing
-  return `${severity}${subLogPath ? ` ${subLogPath} ` : ' '}${
+  return `${logPrefix}${subLogPath ? ` ${subLogPath} ` : ' '}${
     log.message
   } |\n ${withDelimiter(jsonify(log))}`
 }
@@ -331,7 +341,7 @@ function clearLambdaExceptionHandlers() {
   system.process.removeAllListeners('uncaughtException')
   assert.strictEqual(
     system.process.listeners('unhandledRejection').length,
-    getNodeMajorVersion() > 8 ? 1 : 0
+    UNHANDLED_REJECTION_LISTENERS
   )
   system.process.removeAllListeners('unhandledRejection')
   hasAlreadyClearedLambdaHandlers = true
@@ -398,10 +408,4 @@ function hasModuleLoaded(moduleName) {
 
 function clearArray(arr) {
   arr.length = 0
-}
-
-function getNodeMajorVersion() {
-  let version = system.process.version //v8.8
-  // Skip the "v", convert to number
-  return parseFloat(version.substring(1, version.indexOf('.')))
 }

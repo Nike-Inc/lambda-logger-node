@@ -8,14 +8,25 @@ const { EventEmitter } = require('events')
 // const { spawn } = require('child_process')
 
 const { replaceAll } = require('../src/strings')
+const {
+  UNHANDLED_REJECTION_LISTENERS,
+  LAMBDA_PREPENDS_SEVERITY
+} = require('../src/config')
 // The AWS lambda infrastructure does not use process.stdout or process.stderr
 // but we can take advantage of the native node runtime using both for Console
 const proxyquire = require('proxyquire').noPreserveCache()
 
-function logTest(testFn) {
+function logTest(options, testFn) {
+  if (!testFn) {
+    testFn = options
+    options = {}
+  }
+  let { version = process.version } = options
   return async t => {
     const fakeConsole = {
       log: stub(),
+      debug: stub(),
+      warn: stub(),
       error: stub()
     }
     const fakeProcess = new EventEmitter()
@@ -24,17 +35,29 @@ function logTest(testFn) {
     fakeProcess.stdout = {
       write: console.log.bind(console)
     }
-    fakeProcess.version = process.version
+    fakeProcess.version = version
     fakeProcess.env = {}
 
     const logModule = proxyquire('../src/logger', {
       './system': {
         console: fakeConsole,
         process: fakeProcess
+      },
+      './config': {
+        UNHANDLED_REJECTION_LISTENERS:
+          options.listeners !== undefined
+            ? options.listeners
+            : UNHANDLED_REJECTION_LISTENERS,
+        LAMBDA_PREPENDS_SEVERITY:
+          options.lambdaPrepends !== undefined
+            ? options.lambdaPrepends
+            : LAMBDA_PREPENDS_SEVERITY
       }
     })
 
     let logs = fakeConsole.log
+    let warns = fakeConsole.warn
+    let debugs = fakeConsole.debug
     let errors = fakeConsole.error
     let exits = fakeProcess.exit
 
@@ -42,7 +65,9 @@ function logTest(testFn) {
     try {
       return await testFn(t, {
         logs,
+        warns,
         errors,
+        debugs,
         exits,
         Logger,
         LOG_DELIMITER,
@@ -78,21 +103,21 @@ test(
 
 test(
   'logger writes info to console',
-  logTest(async (t, { logs, Logger, LOG_DELIMITER }) => {
+  logTest(async (t, { logs, debugs, Logger, LOG_DELIMITER }) => {
     t.plan(3)
     let logger = Logger({ useGlobalErrorHandler: false, testMode: false })
     logger.info('test')
     logger.debug('bug')
     let logCall = logs.firstCall.args[0]
-    t.ok(logCall.startsWith('INFO test'), 'got test message')
+    t.ok(logCall.includes('test |'), 'got test message')
     t.ok(logCall.includes(LOG_DELIMITER), ' has delimiter')
-    t.ok(logs.secondCall.args[0].startsWith('DEBUG bug'), 'got test message')
+    t.ok(debugs.firstCall.args[0].includes('bug'), 'got test message')
   })
 )
 
 test(
   'logger stringifies objects',
-  logTest(async (t, { logs, Logger }) => {
+  logTest({ lambdaPrepends: false }, async (t, { logs, Logger }) => {
     t.plan(1)
     let logger = Logger({ useGlobalErrorHandler: false, testMode: false })
     let message = { name: 'tim', sub: { age: 30, sub2: { thing: 'stuff' } } }
@@ -169,31 +194,32 @@ test(
 
 test(
   'logger suppress messages below minimum severity',
-  logTest(async (t, { logs, Logger, LOG_DELIMITER }) => {
-    let logger = Logger({ useGlobalErrorHandler: false, testMode: false })
-    logger.setMinimumLogLevel('INFO')
-    logger.debug('skip')
-    logger.info('include')
-    let logCall = logs.firstCall.args[0]
-    t.ok(logCall.startsWith('INFO include'), 'got test message')
-    t.ok(logCall.includes(LOG_DELIMITER), ' has delimiter')
-    t.equal(logs.callCount, 1, 'got called once')
-  })
+  logTest(
+    { lambdaPrepends: false },
+    async (t, { logs, debugs, Logger, LOG_DELIMITER }) => {
+      let logger = Logger({ useGlobalErrorHandler: false, testMode: false })
+      logger.setMinimumLogLevel('INFO')
+      logger.debug('skip')
+      logger.info('include')
+      let logCall = logs.firstCall.args[0]
+      t.ok(logCall.includes('include |'), 'got test message')
+      t.ok(logCall.includes(LOG_DELIMITER), ' has delimiter')
+      t.equal(logs.callCount, 1, 'got called once')
+      t.equal(debugs.callCount, 0, 'debug skipped')
+    }
+  )
 )
 
 test(
   'logger suppress messages below minimum severity for errors',
-  logTest(async (t, { logs, Logger, errors, LOG_DELIMITER }) => {
+  logTest(async (t, { logs, warns, Logger, LOG_DELIMITER }) => {
     let logger = Logger({ useGlobalErrorHandler: false, testMode: false })
     logger.setMinimumLogLevel('WARN')
     logger.info('skip')
     logger.warn('include')
-    t.ok(
-      errors.firstCall.args[0].startsWith('WARN include'),
-      'got test message'
-    )
-    t.ok(errors.firstCall.args[0].includes(LOG_DELIMITER), ' has delimiter')
-    t.equal(errors.callCount, 1, 'got warn')
+    t.ok(warns.firstCall.args[0].includes('include'), 'got test message')
+    t.ok(warns.firstCall.args[0].includes(LOG_DELIMITER), ' has delimiter')
+    t.equal(warns.callCount, 1, 'got warn')
     t.equal(logs.callCount, 0, 'no logs')
   })
 )
@@ -207,7 +233,7 @@ test(
     let sub = logger.createSubLogger('db')
     sub.info('sub message')
     let logCall = logs.firstCall.args[0]
-    t.ok(logCall.startsWith('INFO db sub message'), 'got context prefix')
+    t.ok(logCall.includes('db sub message |'), 'got context prefix')
     let logMessage = replaceAll(
       logCall.substring(logCall.indexOf('|') + 1),
       LOG_DELIMITER,
@@ -222,7 +248,7 @@ test(
 
 test(
   'sub-logger respects parent minimum log level',
-  logTest(async (t, { logs, Logger, errors, LOG_DELIMITER }) => {
+  logTest(async (t, { logs, warns, Logger, errors, LOG_DELIMITER }) => {
     t.plan(5)
     let logger = Logger({ useGlobalErrorHandler: false, testMode: false })
     logger.setMinimumLogLevel('WARN')
@@ -231,8 +257,8 @@ test(
     sub.info('skip')
     sub.warn('sub message')
     t.equal(logs.callCount, 0, 'log skipper')
-    let logCall = errors.firstCall.args[0]
-    t.ok(logCall.startsWith('WARN db sub message'), 'got context prefix')
+    let logCall = warns.firstCall.args[0]
+    t.ok(logCall.includes('db sub message |'), 'got context prefix')
     let logMessage = replaceAll(
       logCall.substring(logCall.indexOf('|') + 1),
       LOG_DELIMITER,
@@ -247,70 +273,74 @@ test(
 
 test(
   'logger registers global error handlers for node8',
-  logTest(async (t, { errors, Logger, fakeProcess }) => {
-    t.plan(5)
-    let fakeLambdaErrorHandler = () => null
-    fakeProcess.removeAllListeners('uncaughtException')
-    fakeProcess.removeAllListeners('unhandledRejection')
-    fakeProcess.version = 'v8.10.0'
-    fakeProcess.on('uncaughtException', fakeLambdaErrorHandler)
-    process.removeAllListeners('unhandledRejection')
-    Logger({ forceGlobalErrorHandler: true })
+  logTest(
+    { lambdaPrepends: true, listeners: 0 },
+    async (t, { errors, Logger, fakeProcess }) => {
+      t.plan(5)
+      let fakeLambdaErrorHandler = () => null
+      fakeProcess.removeAllListeners('uncaughtException')
+      fakeProcess.removeAllListeners('unhandledRejection')
+      fakeProcess.on('uncaughtException', fakeLambdaErrorHandler)
+      process.removeAllListeners('unhandledRejection')
+      Logger({ forceGlobalErrorHandler: true })
 
-    fakeProcess.emit('uncaughtException', { stack: 'fake stack' })
-    fakeProcess.emit('unhandledRejection', { stack: 'fake stack' }, true)
+      fakeProcess.emit('uncaughtException', { stack: 'fake stack' })
+      fakeProcess.emit('unhandledRejection', { stack: 'fake stack' }, true)
 
-    process.removeAllListeners('uncaughtException')
-    process.removeAllListeners('unhandledRejection')
+      process.removeAllListeners('uncaughtException')
+      process.removeAllListeners('unhandledRejection')
 
-    let logCall = errors.firstCall.args[0]
-    t.ok(logCall.startsWith('ERROR uncaught exception'), 'got error')
-    t.ok(logCall.includes('fake stack'), 'got error')
+      let logCall = errors.firstCall.args[0]
+      t.ok(logCall.startsWith('ERROR uncaught exception'), 'got error')
+      t.ok(logCall.includes('fake stack'), 'got error')
 
-    let rejectCall = errors.secondCall.args[0]
-    t.ok(rejectCall.startsWith('ERROR unhandled rejection'), 'got error')
-    t.ok(rejectCall.includes('fake stack'), 'got error')
+      let rejectCall = errors.secondCall.args[0]
+      t.ok(rejectCall.startsWith('ERROR unhandled rejection'), 'got error')
+      t.ok(rejectCall.includes('fake stack'), 'got error')
 
-    t.throws(
-      () => Logger({ forceGlobalErrorHandler: true }),
-      /twice/,
-      'did not allow second global handler logger'
-    )
-  })
+      t.throws(
+        () => Logger({ forceGlobalErrorHandler: true }),
+        /twice/,
+        'did not allow second global handler logger'
+      )
+    }
+  )
 )
 
 test(
   'logger registers global error handlers node10',
-  logTest(async (t, { Logger, errors, fakeProcess }) => {
-    t.plan(5)
-    let fakeLambdaErrorHandler = () => null
-    fakeProcess.removeAllListeners('uncaughtException')
-    fakeProcess.removeAllListeners('unhandledRejection')
-    fakeProcess.version = 'v10.16.3'
-    fakeProcess.on('uncaughtException', fakeLambdaErrorHandler)
-    fakeProcess.on('unhandledRejection', fakeLambdaErrorHandler)
-    Logger({ forceGlobalErrorHandler: true })
+  logTest(
+    { lambdaPrepends: false, listeners: 1 },
+    async (t, { logs, Logger, errors, fakeProcess }) => {
+      t.plan(5)
+      let fakeLambdaErrorHandler = () => null
+      fakeProcess.removeAllListeners('uncaughtException')
+      fakeProcess.removeAllListeners('unhandledRejection')
+      fakeProcess.on('uncaughtException', fakeLambdaErrorHandler)
+      fakeProcess.on('unhandledRejection', fakeLambdaErrorHandler)
+      Logger({ forceGlobalErrorHandler: true })
 
-    fakeProcess.emit('uncaughtException', { stack: 'fake stack' })
-    fakeProcess.emit('unhandledRejection', { stack: 'fake stack' }, true)
+      fakeProcess.emit('uncaughtException', { stack: 'fake stack' })
+      fakeProcess.emit('unhandledRejection', { stack: 'fake stack' }, true)
 
-    process.removeAllListeners('uncaughtException')
-    process.removeAllListeners('unhandledRejection')
+      process.removeAllListeners('uncaughtException')
+      process.removeAllListeners('unhandledRejection')
 
-    let logCall = errors.firstCall.args[0]
-    t.ok(logCall.startsWith('ERROR uncaught exception'), 'got error')
-    t.ok(logCall.includes('fake stack'), 'got error')
+      let logCall = errors.firstCall.args[0]
+      t.ok(logCall.startsWith('ERROR uncaught exception'), 'got error')
+      t.ok(logCall.includes('fake stack'), 'got stack')
 
-    let rejectCall = errors.secondCall.args[0]
-    t.ok(rejectCall.startsWith('ERROR unhandled rejection'), 'got error')
-    t.ok(rejectCall.includes('fake stack'), 'got error')
+      let rejectCall = errors.secondCall.args[0]
+      t.ok(rejectCall.startsWith('ERROR unhandled rejection'), 'got error')
+      t.ok(rejectCall.includes('fake stack'), 'got stack')
 
-    t.throws(
-      () => Logger({ forceGlobalErrorHandler: true }),
-      /twice/,
-      'did not allow second global handler logger'
-    )
-  })
+      t.throws(
+        () => Logger({ forceGlobalErrorHandler: true }),
+        /twice/,
+        'did not allow second global handler logger'
+      )
+    }
+  )
 )
 
 test(
@@ -391,7 +421,7 @@ test(
     logger.info(`Bearer ${testToken}`)
     // console.log(logs.callCount)
     let logCall = logs.firstCall.args[0]
-    t.ok(logCall.includes('INFO --redacted--'), 'got test message')
+    t.ok(logCall.includes('--redacted--'), 'got test message')
     t.notOk(logCall.includes(testToken), 'did not find token')
     t.notOk(logCall.includes(tokenSignature), 'did not find sub token')
     t.notOk(logCall.includes(subSignature), 'did not find sub section')
@@ -400,19 +430,18 @@ test(
 
 test(
   'logger uses TestFormatter in testMode',
-  logTest(async (t, { logs, Logger }) => {
+  logTest({ lambdaPrepends: false }, async (t, { logs, Logger }) => {
     t.plan(1)
     let logger = Logger({ useGlobalErrorHandler: false, testMode: true })
     logger.info('something')
     let logCall = logs.firstCall.args[0]
-    console.log(logCall)
     t.equal(logCall, 'INFO something', 'no json')
   })
 )
 
 test(
   'logger redacts bearer tokens without "bearer"',
-  logTest(async (t, { logs, Logger }) => {
+  logTest({ lambdaPrepends: false }, async (t, { logs, Logger }) => {
     t.plan(4)
     let logger = Logger({
       useGlobalErrorHandler: false,
@@ -421,7 +450,6 @@ test(
     logger.info(`Bearer ${testToken}`)
     logger.info(`message "${testToken}"`)
     let logCall = logs.secondCall.args[0]
-    console.log(logCall)
     t.ok(logCall.includes('INFO message'), 'got test message')
     t.notOk(logCall.includes(testToken), 'did not find token')
     t.notOk(logCall.includes(tokenSignature), 'did not find sub token')
@@ -469,7 +497,7 @@ test(
 
 test(
   'logger uses redactors',
-  logTest(async (t, { logs, Logger }) => {
+  logTest({ lambdaPrepends: false }, async (t, { logs, Logger }) => {
     t.plan(1)
     let logger = Logger({
       useGlobalErrorHandler: false,
