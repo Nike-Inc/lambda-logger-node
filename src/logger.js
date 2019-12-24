@@ -11,6 +11,7 @@ Properties of an ideal logger
   allows custom formatting of objects
 */
 
+const wrapper = require('./wrapper')
 const { EventEmitter } = require('events')
 const jsonify = require('fast-safe-stringify')
 const { stringRedactor, regexRedactor, redact } = require('./strings')
@@ -27,7 +28,8 @@ const {
 module.exports = {
   logLevels,
   LOG_DELIMITER,
-  Logger
+  Logger,
+  wrapper
 }
 
 /**

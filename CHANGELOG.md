@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [3.2.0] - 2019-12-23
+### Added
+- export `wrapper` function
+
 ## [3.1.4] - 2019-10-29
 ### Fixed
 - Log message severity double prepending on Node 10
