@@ -84,7 +84,7 @@ module.exports = logger
 
 // lambda.js
 const logger = require('./logger')
-exports.handler = logger(handler)
+exports.handler = logger.handler(handler)
 async function handler (event, context) {
   // your lambda handler
 }
