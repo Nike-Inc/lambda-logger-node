@@ -16,7 +16,7 @@ const { EventEmitter } = require('events')
 const jsonify = require('fast-safe-stringify')
 const { stringRedactor, regexRedactor, redact } = require('./strings')
 
-const logLevels = ['DEBUG', 'INFO', 'WARN', 'ERROR']
+const logLevels = ['DEBUG', 'INFO', 'WARN', 'ERROR', 'SILENT']
 const LOG_DELIMITER = '___$LAMBDA-LOG-TAG$___'
 const system = require('./system')
 

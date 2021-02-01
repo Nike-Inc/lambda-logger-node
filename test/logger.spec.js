@@ -225,6 +225,18 @@ test(
 )
 
 test(
+  'logger suppress all messages for silent',
+  logTest(async (t, { logs, errors, Logger }) => {
+    let logger = Logger({ useGlobalErrorHandler: false, testMode: false })
+    logger.setMinimumLogLevel('SILENT')
+    logger.info('skip')
+    logger.error('skip')
+    t.equal(errors.callCount, 0, 'no errors')
+    t.equal(logs.callCount, 0, 'no logs')
+  })
+)
+
+test(
   'sub-logger writes info to console',
   logTest(async (t, { logs, Logger, LOG_DELIMITER }) => {
     t.plan(4)
