@@ -6,7 +6,8 @@
   "author": "Tim Kye",
   "license": "Apache-2.0",
   "scripts": {
-    "test": "run-s check jest",
+    "test": "run-s check test:unit",
+    "test:unit": "jest",
     "test:watch": "jest --watch",
     "build": "run-s check build:tsc",
     "build:tsc": "del dist/ && tsc ",
