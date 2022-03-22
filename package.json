@@ -3,6 +3,7 @@
   "version": "4.0.0-0",
   "description": "A logger middleware for AWS Lambda functions",
   "main": "dist/main.js",
+  "typings": "lib/types/main.d.ts",
   "author": "Tim Kye",
   "license": "Apache-2.0",
   "scripts": {
