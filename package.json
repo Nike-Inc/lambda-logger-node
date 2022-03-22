@@ -1,6 +1,6 @@
 {
   "name": "lambda-logger-node",
-  "version": "4.0.0-0",
+  "version": "4.0.0-1",
   "description": "A logger middleware for AWS Lambda functions",
   "main": "dist/main.js",
   "typings": "lib/types/main.d.ts",
