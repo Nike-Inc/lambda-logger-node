@@ -1,10 +1,11 @@
 export {
   LOG_DELIMITER,
   Logger,
-  LambdaLogger,
   LoggerProps,
   Formatter,
   Loggable,
+  LoggerWithSub,
+  LambdaLogger,
 } from './logger'
 
 export { wrapper } from './wrapper'
