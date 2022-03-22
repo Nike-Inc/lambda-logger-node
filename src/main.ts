@@ -6,6 +6,8 @@ export {
   Loggable,
   LoggerWithSub,
   LambdaLogger,
+  LineFormatter,
+  JsonFormatter,
 } from './logger'
 
 export { wrapper } from './wrapper'

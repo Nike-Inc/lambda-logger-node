@@ -94,7 +94,7 @@ export function Logger({
   const initContext: Partial<LogContext> = {
     minimumLogLevel,
     formatter:
-      formatter ?? isInTestMode(testMode) ? TestFormatter : JsonFormatter,
+      formatter ?? isInTestMode(testMode) ? LineFormatter : JsonFormatter,
     events: new EventEmitter(),
     contextPath: [],
     testMode,
@@ -288,7 +288,7 @@ function formatMessageItem(message: unknown) {
   return jsonify(message, undefined, 2)
 }
 
-function JsonFormatter(
+export function JsonFormatter(
   context: FormatContext,
   severity: Severity,
   ...args: unknown[]
@@ -310,7 +310,7 @@ function JsonFormatter(
   } |\n ${withDelimiter(jsonify(log))}`
 }
 
-function TestFormatter(
+export function LineFormatter(
   context: FormatContext,
   severity: Severity,
   ...args: unknown[]
