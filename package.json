@@ -20,7 +20,7 @@
     "release": "npm run build && np"
   },
   "files": [
-    "dist"
+    "lib"
   ],
   "engines": {
     "node": ">=12.10"
@@ -55,7 +55,7 @@
   "size-limit": [
     {
       "webpack": false,
-      "path": "dist/*.js",
+      "path": "lib/*.js",
       "limit": "6kb"
     }
   ]
