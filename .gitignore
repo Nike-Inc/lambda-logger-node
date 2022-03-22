@@ -38,3 +38,4 @@ jspm_packages
 .history/
 xunit.xml
 dist/
+lib/
