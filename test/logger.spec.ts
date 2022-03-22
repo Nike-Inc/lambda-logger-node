@@ -232,11 +232,11 @@ describe('Logger', () => {
     process.removeAllListeners('unhandledRejection')
 
     const logCall = getLog('error')
-    expect(logCall).toMatch(/^ERROR uncaught exception/)
+    expect(logCall).toMatch(/^uncaught exception/)
     expect(logCall).toContain('fake stack')
 
     const rejectCall = getLog('error', 1)
-    expect(rejectCall).toMatch(/^ERROR unhandled rejection/)
+    expect(rejectCall).toMatch(/^unhandled rejection/)
     expect(rejectCall).toContain('fake stack')
 
     expect(() => Logger({ forceGlobalErrorHandler: true })).toThrow(/twice/)
@@ -291,7 +291,7 @@ describe('Logger', () => {
     const logger = Logger({ useGlobalErrorHandler: false, testMode: true })
     logger.info('something')
     const logCall = getLog()
-    expect(logCall).toEqual('INFO something')
+    expect(logCall).toEqual('something')
   })
 
   test('redacts bearer tokens', () => {
@@ -363,6 +363,6 @@ describe('Logger', () => {
     })
     logger.info('string regex custom test')
     const logCall = getLog()
-    expect(logCall).toMatch(/^INFO --redacted-- --redacted-- --removed-- test/)
+    expect(logCall).toMatch(/^--redacted-- --redacted-- --removed-- test/)
   })
 })

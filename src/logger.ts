@@ -305,7 +305,7 @@ export function JsonFormatter(
   log.contextPath = subLogPath || undefined
   // put the un-annotated message first to make cloudwatch viewing easier
   // include the MDC annotaed message after with log delimiter to enable parsing
-  return `${subLogPath ? ` ${subLogPath} ` : ' '}${
+  return `${subLogPath ? ` ${subLogPath} ` : ''}${
     log.message
   } |\n ${withDelimiter(jsonify(log))}`
 }
@@ -320,9 +320,7 @@ export function LineFormatter(
     args.length === 1
       ? formatMessageItem(args[0])
       : args.map(formatMessageItem).join(' ')
-  return `${severity.toUpperCase()}${
-    subLogPath ? ` ${subLogPath} ` : ' '
-  }${message}`
+  return `${subLogPath ? ` ${subLogPath} ` : ''}${message}`
 }
 
 function withDelimiter(message: string) {
